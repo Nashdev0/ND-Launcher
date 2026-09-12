@@ -491,10 +491,15 @@ pub async fn launch_game(app: AppHandle, username: String, uuid_str: String, ver
     }
     
     // Auto-resolve absolute path if it's just the default command
-    if java_bin == "java.exe" || java_bin == "java" {
+    if java_bin == "java.exe" || java_bin == "java" || java_bin == "javaw.exe" {
         if let Some(best) = crate::java::get_best_java_for_version(&version).await {
             java_bin = best;
         }
+    }
+    
+    // On Windows, use javaw.exe to prevent the black CMD console window from appearing
+    if cfg!(windows) && java_bin.ends_with("java.exe") {
+        java_bin = java_bin.replace("java.exe", "javaw.exe");
     }
 
     let mut child = tokio::process::Command::new(java_bin)

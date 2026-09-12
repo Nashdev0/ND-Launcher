@@ -64,6 +64,12 @@ body {
   background: var(--accent-hover);
 }
 
+.btn-primary:disabled {
+  background: #a0aabf;
+  color: #e2e8f0;
+  cursor: not-allowed;
+}
+
 .btn-danger {
   color: var(--danger);
 }

@@ -150,7 +150,9 @@ pub async fn install_java(version: u32) -> Result<(), String> {
 
 pub async fn get_best_java_for_version(mc_version: &str) -> Option<String> {
     if let Ok(installations) = get_installed_java().await {
-        let required_major = if mc_version.starts_with("1.21") || mc_version.starts_with("1.20.5") || mc_version.starts_with("1.20.6") {
+        let required_major = if mc_version.starts_with("26.") || mc_version.starts_with("1.21.2") {
+            25
+        } else if mc_version.starts_with("1.21") || mc_version.starts_with("1.20.5") || mc_version.starts_with("1.20.6") {
             21
         } else if mc_version.starts_with("1.17") || mc_version.starts_with("1.18") || mc_version.starts_with("1.19") || mc_version.starts_with("1.20") {
             17

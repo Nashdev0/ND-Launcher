@@ -244,6 +244,7 @@ async function fetchAccounts() {
 async function fetchJavaInstallations() {
   try {
     let installations = await invoke("get_installed_java");
+    let settings = await invoke("get_settings");
     
     // Update javaAutoSelect (in case it still exists on main screen)
     if (javaAutoSelect) {
@@ -261,13 +262,30 @@ async function fetchJavaInstallations() {
     versionsToCheck.forEach(ver => {
       let container = document.querySelector(`#java-${ver}-status`);
       if (container) {
-        let isInstalled = installations.some(j => j.major_version === ver);
-        if (isInstalled) {
-          container.innerHTML = `<span style="color: #4CAF50; font-weight: 500;">✅ Sudah terpasang</span>`;
+        let installedJava = installations.find(j => j.major_version === ver);
+        if (installedJava) {
+          let isActive = (settings.custom_java_path === installedJava.path);
+          if (isActive) {
+            container.innerHTML = `<button class="btn btn-primary" disabled style="background: var(--success); opacity: 1; padding: 5px 15px; font-size: 0.85rem; color: white; cursor: default;">✅ Aktif</button>`;
+          } else {
+            container.innerHTML = `<button class="btn btn-outline btn-set-java" data-path="${installedJava.path}" type="button" style="padding: 5px 15px; font-size: 0.85rem;">Gunakan</button>`;
+          }
         } else {
           container.innerHTML = `<button class="btn btn-primary btn-install-java" data-version="${ver}" type="button" style="padding: 5px 15px; font-size: 0.85rem;">⬇️ Install</button>`;
         }
       }
+    });
+
+    // Rebind set active java buttons
+    document.querySelectorAll(".btn-set-java").forEach(btn => {
+      btn.addEventListener("click", async (e) => {
+        let path = e.target.getAttribute("data-path");
+        let currentSettings = await invoke("get_settings");
+        currentSettings.custom_java_path = path;
+        await invoke("save_settings", { settings: currentSettings });
+        if (typeof globalSettings !== 'undefined') globalSettings = currentSettings; // update global ref if exists
+        await fetchJavaInstallations(); // refresh ui
+      });
     });
 
     // Rebind install buttons
@@ -279,8 +297,16 @@ async function fetchJavaInstallations() {
         e.target.disabled = true;
         try {
           await invoke("install_java", { version: v });
+          // Automatically set as active if successful
+          let newInstalls = await invoke("get_installed_java");
+          let newlyInstalled = newInstalls.find(j => j.major_version === v);
+          if (newlyInstalled) {
+            let currentSettings = await invoke("get_settings");
+            currentSettings.custom_java_path = newlyInstalled.path;
+            await invoke("save_settings", { settings: currentSettings });
+          }
           await fetchJavaInstallations(); // refresh
-          alert(`Java ${v} berhasil dipasang!`);
+          alert(`Java ${v} berhasil dipasang dan diaktifkan!`);
         } catch (err) {
           alert(`Gagal memasang Java: ${err}`);
           e.target.textContent = originalText;
@@ -308,12 +334,9 @@ async function launchGame() {
   statusMsg.textContent = "Menyiapkan...";
   launchBtn.disabled = true;
   
-  let customJavaPath = javaCustomInput.value.trim() !== "" ? javaCustomInput.value : (javaAutoSelect.value !== "" ? javaAutoSelect.value : null);
-
   try {
     // Save settings safely
     let currentSettings = await invoke("get_settings");
-    currentSettings.custom_java_path = javaCustomInput.value.trim() !== "" ? javaCustomInput.value : null;
     currentSettings.active_account_id = currentActiveAccount.id;
     await invoke("save_settings", { settings: currentSettings });
 
@@ -322,14 +345,16 @@ async function launchGame() {
       uuidStr: currentActiveAccount.uuid,
       version: currentActiveInstance.version, 
       ram: 4, // Ignored in Rust (uses global settings instead)
-      javaPath: customJavaPath,
+      javaPath: currentSettings.custom_java_path,
       instanceId: currentActiveInstance.id
     });
-    statusMsg.textContent = result;
+    statusMsg.textContent = "Membuka Minecraft...";
+    launchBtn.textContent = "Sedang Bermain";
+    // Biarkan tombol disable saat bermain
   } catch (error) {
     statusMsg.textContent = "Error: " + error;
-  } finally {
     launchBtn.disabled = false;
+    launchBtn.textContent = "Mainkan";
   }
 }
 
@@ -512,9 +537,38 @@ async function searchModrinth(query) {
           <span style="background: #eef2ff; color: var(--accent); padding: 2px 6px; border-radius: 4px;">🎯 ${targetVersionLabel} ${loader.toUpperCase()}</span>
           <span>📥 ${downloads}</span>
         </div>
-        <button class="btn ${isInstalled ? '' : 'btn-primary'} mod-install-btn" data-slug="${mod.slug}" style="width: 100%; ${isInstalled ? 'background: var(--success); color: white; border: none;' : ''}" ${isInstalled ? 'disabled' : ''}>${isInstalled ? '✓ Terpasang' : 'Install'}</button>
+        <div style="display: flex; gap: 8px; margin-bottom: 12px; align-items: center;">
+          <select id="ver-${mod.slug}" class="input-box" style="flex: 1; font-size: 11px; padding: 4px; background: rgba(0,0,0,0.05); border-color: rgba(0,0,0,0.1);">
+            <option value="">Memuat versi...</option>
+          </select>
+        </div>
+        <button class="btn ${isInstalled ? '' : 'btn-primary'} mod-install-btn" data-slug="${mod.slug}" data-is-installed="${isInstalled}" style="width: 100%; ${isInstalled ? 'background: var(--accent); color: white; border: none;' : ''}">${isInstalled ? 'Ganti Versi / Re-install' : 'Install'}</button>
       `;
       grid.appendChild(card);
+      
+      // Async fetch versions for this mod
+      fetch(`https://api.modrinth.com/v2/project/${mod.slug}/version?loaders=["${loader}"]&game_versions=["${mc_version}"]`)
+        .then(res => res.json())
+        .then(verData => {
+          let select = document.getElementById(`ver-${mod.slug}`);
+          if (select) {
+            select.innerHTML = "";
+            if (verData.length === 0) {
+              select.innerHTML = `<option value="">Tidak ada versi cocok</option>`;
+            } else {
+              verData.forEach(v => {
+                let opt = document.createElement("option");
+                opt.value = v.id;
+                opt.textContent = v.name || v.version_number;
+                select.appendChild(opt);
+              });
+            }
+          }
+        })
+        .catch(err => {
+          let select = document.getElementById(`ver-${mod.slug}`);
+          if (select) select.innerHTML = `<option value="">Error memuat versi</option>`;
+        });
     });
     
     grid.querySelectorAll(".mod-install-btn").forEach(btn => {
@@ -524,18 +578,49 @@ async function searchModrinth(query) {
         e.target.disabled = true;
         
         try {
+          let isInstalled = e.target.getAttribute("data-is-installed") === "true";
+          let specificVersionId = document.getElementById(`ver-${slug}`).value;
+          if (!specificVersionId) {
+            alert("Silakan tunggu versi dimuat atau tidak ada versi yang cocok.");
+            e.target.textContent = isInstalled ? "Ganti Versi / Re-install" : "Install";
+            e.target.disabled = false;
+            return;
+          }
+          
+          if (isInstalled) {
+            let existingMod = installedMods.find(m => m.name.toLowerCase().includes(slug.toLowerCase()) || m.id.toLowerCase().includes(slug.toLowerCase()));
+            if (existingMod) {
+              try {
+                await invoke("delete_mod", { instanceId: currentActiveInstance.id, modId: existingMod.id });
+              } catch (err) {
+                console.log("Failed to delete old mod", err);
+              }
+            }
+          }
+
           // Recursive Dependency Resolver
           let downloadQueue = [];
           let resolvedSet = new Set();
           
-          async function resolveDeps(projectId) {
-            let verUrl = `https://api.modrinth.com/v2/project/${projectId}/version?loaders=["${loader}"]&game_versions=["${mc_version}"]`;
+          async function resolveDeps(projectId, specificVerId = null) {
+            let verUrl = specificVerId ? 
+              `https://api.modrinth.com/v2/version/${specificVerId}` : 
+              `https://api.modrinth.com/v2/project/${projectId}/version?loaders=["${loader}"]&game_versions=["${mc_version}"]`;
+            
             let verRes = await fetch(verUrl);
             if (!verRes.ok) return;
-            let verData = await verRes.json();
             
-            if (verData.length > 0) {
-              let version = verData[0];
+            let version;
+            if (specificVerId) {
+              version = await verRes.json();
+            } else {
+              let verData = await verRes.json();
+              if (verData.length > 0) {
+                version = verData[0];
+              }
+            }
+            
+            if (version) {
               let file = version.files.find(f => f.primary) || version.files[0];
               
               if (!resolvedSet.has(file.url)) {
@@ -546,15 +631,19 @@ async function searchModrinth(query) {
               
               if (version.dependencies && version.dependencies.length > 0) {
                 for (let dep of version.dependencies) {
+                  // Skip Sodium (AANobbMI) if we are installing Iris, as newer Iris embeds it or user prefers standalone
+                  if (dep.project_id === "AANobbMI" && slug === "iris") {
+                    continue;
+                  }
                   if (dep.dependency_type === "required" && dep.project_id) {
-                    await resolveDeps(dep.project_id);
+                    await resolveDeps(dep.project_id, null);
                   }
                 }
               }
             }
           }
           
-          await resolveDeps(slug);
+          await resolveDeps(slug, specificVersionId);
           
           if (downloadQueue.length === 0) {
             alert("Versi file yang cocok tidak ditemukan.");
@@ -590,10 +679,17 @@ async function searchModrinth(query) {
           e.target.style.background = "var(--success)";
           e.target.style.color = "white";
           e.target.style.border = "none";
+          e.target.setAttribute("data-is-installed", "true");
+          
+          // Refresh installed mods in memory so if they click again it can find the new file
+          try {
+            installedMods = await invoke("get_instance_mods", { instanceId: currentActiveInstance.id });
+          } catch(e) {}
           
         } catch(err) {
           alert("Gagal: " + err);
-          e.target.textContent = "Install";
+          let isInstalled = e.target.getAttribute("data-is-installed") === "true";
+          e.target.textContent = isInstalled ? "Ganti Versi / Re-install" : "Install";
           e.target.disabled = false;
         }
       });
@@ -999,6 +1095,37 @@ window.addEventListener("DOMContentLoaded", async () => {
       let ver = versionSelectHidden.value;
       let loader = loaderSelectHidden.value;
       if (name !== "" && ver !== "") {
+        // Auto Java 25 Check
+        if (ver.startsWith("26.") || ver.startsWith("1.21.2") || ver.startsWith("1.21.3") || ver.startsWith("1.21.4")) {
+          let installations = await invoke("get_installed_java");
+          let hasJava25 = installations.some(j => j.major_version === 25);
+          if (!hasJava25) {
+            let confirmInstall = confirm(`Versi ${ver} mewajibkan Java 25, tetapi Anda belum menginstallnya.\n\nApakah Anda ingin mengunduh dan menginstall Java 25 secara otomatis sekarang?`);
+            if (confirmInstall) {
+              let originalBtnText = confirmCreateBtn.textContent;
+              confirmCreateBtn.disabled = true;
+              confirmCreateBtn.textContent = "Mengunduh Java 25...";
+              try {
+                await invoke("install_java", { version: 25 });
+                let newInstalls = await invoke("get_installed_java");
+                let j25 = newInstalls.find(j => j.major_version === 25);
+                if (j25) {
+                  let currentSettings = await invoke("get_settings");
+                  currentSettings.custom_java_path = j25.path;
+                  await invoke("save_settings", { settings: currentSettings });
+                  if (typeof globalSettings !== 'undefined') globalSettings = currentSettings;
+                  if (typeof fetchJavaInstallations !== 'undefined') await fetchJavaInstallations();
+                  alert("Java 25 berhasil diinstall dan diaktifkan!");
+                }
+              } catch (e) {
+                alert("Gagal menginstall Java 25: " + e);
+              }
+              confirmCreateBtn.disabled = false;
+              confirmCreateBtn.textContent = originalBtnText;
+            }
+          }
+        }
+
         await invoke("create_instance", { name, version: ver, loader });
         newInstanceName.value = "";
         showCreateBtn.style.display = "block";
@@ -1150,8 +1277,22 @@ window.addEventListener("DOMContentLoaded", async () => {
   });
 
   await listen("game-log", (event) => {
+    let payload = event.payload;
+    if (typeof payload === 'string' && payload === "[SYSTEM] Game exited.") {
+      let launchBtn = document.querySelector("#launch-btn");
+      let statusMsg = document.querySelector("#status-msg");
+      let progressContainer = document.querySelector("#progress-container");
+      
+      if (launchBtn) {
+        launchBtn.disabled = false;
+        launchBtn.textContent = "LAUNCH GAME";
+      }
+      if (statusMsg) statusMsg.textContent = "Ready to play.";
+      if (progressContainer) progressContainer.style.display = "none";
+    }
+    
     // Hidden from UI, but still logged to console for debugging
-    console.log(event.payload);
+    console.log(payload);
   });
 
   // Server Console Logic
@@ -1473,19 +1614,20 @@ window.addEventListener("DOMContentLoaded", async () => {
     saveSettingsBtn.addEventListener("click", async () => {
       if (!globalSettings) return;
       
-      globalSettings.theme = document.querySelector("#settings-theme").value;
-      globalSettings.ram_min = parseInt(document.querySelector("#settings-ram-min").value) || 1024;
-      globalSettings.ram_max = parseInt(document.querySelector("#settings-ram-max").value) || 4096;
-      globalSettings.res_width = parseInt(document.querySelector("#settings-res-width").value) || 854;
-      globalSettings.res_height = parseInt(document.querySelector("#settings-res-height").value) || 480;
+      let latestSettings = await invoke("get_settings");
       
-      globalSettings.custom_game_dir = document.querySelector("#settings-game-dir").value.trim() || null;
-      globalSettings.custom_server_dir = document.querySelector("#settings-server-dir").value.trim() || null;
-      // custom_java_path removed as it's now handled by Java Manager
-      globalSettings.custom_java_path = null;
+      latestSettings.theme = document.querySelector("#settings-theme").value;
+      latestSettings.ram_min = parseInt(document.querySelector("#settings-ram-min").value) || 1024;
+      latestSettings.ram_max = parseInt(document.querySelector("#settings-ram-max").value) || 4096;
+      latestSettings.res_width = parseInt(document.querySelector("#settings-res-width").value) || 854;
+      latestSettings.res_height = parseInt(document.querySelector("#settings-res-height").value) || 480;
+      
+      latestSettings.custom_game_dir = document.querySelector("#settings-game-dir").value.trim() || null;
+      latestSettings.custom_server_dir = document.querySelector("#settings-server-dir").value.trim() || null;
       
       try {
-        await invoke("save_settings", { settings: globalSettings });
+        await invoke("save_settings", { settings: latestSettings });
+        globalSettings = latestSettings;
         applyTheme(globalSettings.theme);
         alert("Pengaturan berhasil disimpan!");
       } catch (e) {

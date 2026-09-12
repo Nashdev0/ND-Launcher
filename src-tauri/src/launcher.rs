@@ -489,6 +489,13 @@ pub async fn launch_game(app: AppHandle, username: String, uuid_str: String, ver
             java_bin = path;
         }
     }
+    
+    // Auto-resolve absolute path if it's just the default command
+    if java_bin == "java.exe" || java_bin == "java" {
+        if let Some(best) = crate::java::get_best_java_for_version(&version).await {
+            java_bin = best;
+        }
+    }
 
     let mut child = tokio::process::Command::new(java_bin)
         .current_dir(&instance_dir)

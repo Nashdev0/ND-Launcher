@@ -11,6 +11,22 @@
 
 <body>
   <div id="app-container">
+    
+    <!-- UPDATE CHECKER NOTIFICATION -->
+    <div id="update-notification" style="display: none; position: fixed; top: 20px; right: 20px; background: var(--bg-card); border: 2px solid var(--primary); border-radius: 12px; padding: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); z-index: 9999; max-width: 400px;">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+        <h3 style="margin: 0; font-size: 18px; color: var(--accent);">🚀 Update Tersedia!</h3>
+        <button id="close-update-btn" style="background: none; border: none; cursor: pointer; font-size: 16px; color: var(--text-muted);">✖</button>
+      </div>
+      <p style="margin: 0 0 12px 0; font-size: 14px; color: var(--text-muted);">ND Launcher versi <strong id="update-new-version"></strong> telah dirilis. (Versi Anda: <span id="update-current-version"></span>)</p>
+      
+      <div id="update-changelog" style="font-size: 12px; background: rgba(0,0,0,0.1); padding: 10px; border-radius: 6px; max-height: 150px; overflow-y: auto; margin-bottom: 15px; border: 1px solid var(--border);">
+        <!-- Changelog from GitHub goes here -->
+      </div>
+      
+      <a id="btn-download-update" href="https://github.com/Nashdev0/ND-Launcher/releases/latest" target="_blank" class="btn btn-primary" style="width: 100%; font-weight: bold; text-align: center; text-decoration: none; display: block; box-sizing: border-box;">Unduh Sekarang</a>
+    </div>
+
 
     <!-- LEFT SIDEBAR -->
     <aside id="sidebar-left">
@@ -34,6 +50,9 @@
         </div>
         <div class="nav-item" id="nav-settings">
           <span>⚙️</span> Settings
+        </div>
+        <div class="nav-item" id="nav-screenshots">
+          <span>📸</span> Screenshots
         </div>
 
         <div class="account-manager">
@@ -273,6 +292,31 @@
           </div>
         </div>
       </div>
+      
+      <!-- SCREENSHOTS VIEW -->
+      <div id="view-screenshots" style="display: none; padding: 24px; max-width: 1000px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+          <h2 style="font-size: 24px; font-weight: 700; color: var(--accent);">📸 Screenshot Gallery</h2>
+          <div style="display: flex; gap: 12px; align-items: center;">
+            <label style="font-size: 13px; font-weight: 600;">Instance:</label>
+            <select id="screenshot-instance-select" class="input-box" style="width: 200px;">
+              <option value="">Pilih Instance...</option>
+            </select>
+            <button class="btn btn-outline" id="btn-open-screenshot-folder" title="Buka Folder di File Explorer">📂</button>
+          </div>
+        </div>
+
+        <div id="screenshots-empty" style="text-align: center; padding: 60px 20px; color: var(--text-muted); background: var(--bg-card); border-radius: 12px; border: 1px dashed var(--border);">
+          <div style="font-size: 40px; margin-bottom: 10px;">📸</div>
+          <p>Belum ada screenshot di instance ini.</p>
+          <p style="font-size: 12px; margin-top: 5px;">Tekan F2 saat bermain Minecraft untuk mengambil screenshot.</p>
+        </div>
+
+        <div id="screenshots-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px;">
+          <!-- JS will populate -->
+        </div>
+      </div>
+      
     </main>
 
     <!-- RIGHT SIDEBAR (Server Hub) -->

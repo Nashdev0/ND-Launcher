@@ -3,6 +3,7 @@ mod launcher;
 mod settings;
 mod java;
 mod server;
+mod screenshot;
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
@@ -36,6 +37,7 @@ pub fn run() {
             settings::switch_instance,
             settings::delete_instance,
             settings::get_instances,
+            settings::get_app_version,
             settings::download_mod_to_instance,
             settings::download_shader_to_instance,
             settings::copy_local_skin,
@@ -55,7 +57,11 @@ pub fn run() {
             server::delete_server_plugin,
             server::send_console_command,
             server::get_server_properties,
-            server::save_server_properties
+            server::save_server_properties,
+            screenshot::get_screenshots,
+            screenshot::get_screenshot_base64,
+            screenshot::delete_screenshot,
+            screenshot::open_screenshot_folder
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

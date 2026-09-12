@@ -428,3 +428,8 @@ pub async fn delete_mod(instance_id: String, mod_name: String) -> Result<(), Str
     
     Ok(())
 }
+
+#[tauri::command]
+pub async fn get_app_version(app: tauri::AppHandle) -> Result<String, String> {
+    Ok(app.package_info().version.to_string())
+}

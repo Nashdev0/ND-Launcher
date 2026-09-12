@@ -918,16 +918,18 @@ window.addEventListener("DOMContentLoaded", async () => {
   let navModrinth = document.querySelector("#nav-modrinth");
   let navShaders = document.querySelector("#nav-shaders");
   let navSettings = document.querySelector("#nav-settings");
+  let navScreenshots = document.querySelector("#nav-screenshots");
   
   let viewInstances = document.querySelector("#view-instances");
   let viewNews = document.querySelector("#view-news");
   let viewModrinth = document.querySelector("#view-modrinth");
   let viewShaders = document.querySelector("#view-shaders");
   let viewSettings = document.querySelector("#view-settings");
+  let viewScreenshots = document.querySelector("#view-screenshots");
 
   function switchTab(activeNav, activeView) {
-    [navInstances, navNews, navModrinth, navShaders, navSettings].forEach(n => n && n.classList.remove("active"));
-    [viewInstances, viewNews, viewModrinth, viewShaders, viewSettings].forEach(v => v && (v.style.display = "none"));
+    [navInstances, navNews, navModrinth, navShaders, navSettings, navScreenshots].forEach(n => n && n.classList.remove("active"));
+    [viewInstances, viewNews, viewModrinth, viewShaders, viewSettings, viewScreenshots].forEach(v => v && (v.style.display = "none"));
     
     if (activeNav) activeNav.classList.add("active");
     if (activeView) activeView.style.display = "block";
@@ -940,6 +942,10 @@ window.addEventListener("DOMContentLoaded", async () => {
   if (navSettings) navSettings.addEventListener("click", () => {
     switchTab(navSettings, viewSettings);
     loadSettings(); // Refresh form when opened
+  });
+  if (navScreenshots) navScreenshots.addEventListener("click", () => {
+    switchTab(navScreenshots, viewScreenshots);
+    initScreenshotsView();
   });
 
   // MODRINTH SEARCH
@@ -1524,4 +1530,175 @@ window.addEventListener("DOMContentLoaded", async () => {
   
   // Make loadSettings global if needed by nav logic
   window.loadSettings = loadSettings;
+  
+  // --- SCREENSHOT MANAGER ---
+  async function initScreenshotsView() {
+    let select = document.getElementById("screenshot-instance-select");
+    if (!select) return;
+    
+    // Populate dropdown
+    try {
+      let instances = await invoke("get_instances");
+      let activeId = select.value || currentActiveInstance?.id || (instances.length > 0 ? instances[0].id : "");
+      
+      select.innerHTML = '<option value="">-- Pilih Instance --</option>';
+      instances.forEach(inst => {
+        let opt = document.createElement("option");
+        opt.value = inst.id;
+        opt.textContent = `${inst.name} (${inst.version})`;
+        if (inst.id === activeId) opt.selected = true;
+        select.appendChild(opt);
+      });
+      
+      select.onchange = () => loadScreenshots(select.value);
+      
+      let btnFolder = document.getElementById("btn-open-screenshot-folder");
+      btnFolder.onclick = () => {
+        let id = select.value;
+        if (id) {
+          invoke("open_screenshot_folder", { instanceId: id }).catch(e => alert("Gagal membuka folder: " + e));
+        }
+      };
+      
+      if (activeId) {
+        select.value = activeId;
+        loadScreenshots(activeId);
+      }
+    } catch (e) {
+      console.error("Failed to load instances for screenshots", e);
+    }
+  }
+
+  async function loadScreenshots(instanceId) {
+    let grid = document.getElementById("screenshots-grid");
+    let empty = document.getElementById("screenshots-empty");
+    if (!grid || !empty) return;
+    
+    if (!instanceId) {
+      grid.innerHTML = "";
+      empty.style.display = "block";
+      return;
+    }
+    
+    try {
+      let screenshots = await invoke("get_screenshots", { instanceId });
+      
+      if (screenshots.length === 0) {
+        grid.innerHTML = "";
+        empty.style.display = "block";
+        return;
+      }
+      
+      empty.style.display = "none";
+      grid.innerHTML = "";
+      
+      for (let sc of screenshots) {
+        let card = document.createElement("div");
+        card.className = "panel";
+        card.style.cssText = "padding: 12px; display: flex; flex-direction: column; gap: 8px;";
+        
+        let imgContainer = document.createElement("div");
+        imgContainer.style.cssText = "width: 100%; aspect-ratio: 16/9; background: #000; border-radius: 8px; overflow: hidden; display: flex; align-items: center; justify-content: center; position: relative;";
+        
+        let img = document.createElement("img");
+        img.style.cssText = "width: 100%; height: 100%; object-fit: contain; opacity: 0.5; transition: opacity 0.3s;";
+        
+        let spinner = document.createElement("div");
+        spinner.textContent = "⏳ Memuat...";
+        spinner.style.cssText = "position: absolute; color: white; font-size: 12px;";
+        
+        imgContainer.appendChild(spinner);
+        imgContainer.appendChild(img);
+        
+        let info = document.createElement("div");
+        info.style.cssText = "display: flex; justify-content: space-between; align-items: center;";
+        
+        let name = document.createElement("div");
+        name.style.cssText = "font-size: 12px; font-weight: 600; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; max-width: 180px;";
+        name.textContent = sc.filename;
+        
+        let delBtn = document.createElement("button");
+        delBtn.className = "btn";
+        delBtn.style.cssText = "background: #ffebee; color: var(--danger); border: none; padding: 4px 8px; font-size: 11px;";
+        delBtn.innerHTML = "🗑️";
+        delBtn.title = "Hapus Screenshot";
+        
+        delBtn.onclick = async () => {
+          if(confirm(`Yakin ingin menghapus ${sc.filename}?`)) {
+            try {
+              await invoke("delete_screenshot", { instanceId, filename: sc.filename });
+              loadScreenshots(instanceId); // reload
+            } catch(e) {
+              alert("Gagal menghapus: " + e);
+            }
+          }
+        };
+        
+        info.appendChild(name);
+        info.appendChild(delBtn);
+        
+        card.appendChild(imgContainer);
+        card.appendChild(info);
+        grid.appendChild(card);
+        
+        // Lazy load Base64
+        invoke("get_screenshot_base64", { instanceId, filename: sc.filename })
+          .then(b64 => {
+            img.src = b64;
+            img.onload = () => {
+              spinner.style.display = "none";
+              img.style.opacity = "1";
+            };
+            img.onclick = () => {
+               // Open full size in new window/tab or simple modal
+               let w = window.open("");
+               w.document.write(`<body style="margin:0;background:#111;display:flex;align-items:center;justify-content:center;height:100vh;"><img src="${b64}" style="max-width:100%;max-height:100%;object-fit:contain;"></body>`);
+            };
+            img.style.cursor = "pointer";
+          })
+          .catch(e => {
+            spinner.textContent = "❌ Gagal memuat";
+          });
+      }
+    } catch (e) {
+      grid.innerHTML = `<div style="color:var(--danger)">Gagal memuat screenshot: ${e}</div>`;
+      empty.style.display = "none";
+    }
+  }
+
+  // --- UPDATE CHECKER ---
+  async function checkForUpdates() {
+    try {
+      const currentVersion = await invoke("get_app_version");
+      const res = await fetch("https://api.github.com/repos/Nashdev0/ND-Launcher/releases/latest");
+      if (!res.ok) return;
+      const data = await res.json();
+      
+      let latestVersion = data.tag_name;
+      if (latestVersion.startsWith("v")) latestVersion = latestVersion.substring(1);
+      
+      if (latestVersion !== currentVersion) {
+        document.getElementById("update-current-version").textContent = currentVersion;
+        document.getElementById("update-new-version").textContent = latestVersion;
+        
+        let bodyHtml = (data.body || "Tidak ada changelog yang disediakan.").replace(/\r\n/g, "<br>").replace(/\n/g, "<br>");
+        document.getElementById("update-changelog").innerHTML = bodyHtml;
+        
+        document.getElementById("update-notification").style.display = "block";
+        
+        if (data.html_url) {
+          document.getElementById("btn-download-update").href = data.html_url;
+        }
+        
+        document.getElementById("close-update-btn").onclick = () => {
+          document.getElementById("update-notification").style.display = "none";
+        };
+      }
+    } catch (e) {
+      console.error("Update check failed:", e);
+    }
+  }
+  
+  // Call it a few seconds after startup
+  setTimeout(checkForUpdates, 3000);
 });

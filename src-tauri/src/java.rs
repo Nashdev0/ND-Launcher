@@ -147,3 +147,31 @@ pub async fn install_java(version: u32) -> Result<(), String> {
     
     Ok(())
 }
+
+pub async fn get_best_java_for_version(mc_version: &str) -> Option<String> {
+    if let Ok(installations) = get_installed_java().await {
+        let required_major = if mc_version.starts_with("1.21") || mc_version.starts_with("1.20.5") || mc_version.starts_with("1.20.6") {
+            21
+        } else if mc_version.starts_with("1.17") || mc_version.starts_with("1.18") || mc_version.starts_with("1.19") || mc_version.starts_with("1.20") {
+            17
+        } else {
+            8
+        };
+        
+        // Find exact match first
+        if let Some(java) = installations.iter().find(|j| j.major_version == required_major) {
+            return Some(java.path.clone());
+        }
+        
+        // Fallback to any Java that is >= required
+        if let Some(java) = installations.iter().filter(|j| j.major_version >= required_major).min_by_key(|j| j.major_version) {
+            return Some(java.path.clone());
+        }
+        
+        // Fallback to anything
+        if let Some(java) = installations.first() {
+            return Some(java.path.clone());
+        }
+    }
+    None
+}

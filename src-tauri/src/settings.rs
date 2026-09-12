@@ -202,6 +202,10 @@ pub async fn get_accounts() -> Result<Vec<Account>, String> {
 pub async fn create_instance(name: String, version: String, loader: String) -> Result<Instance, String> {
     let mut settings = get_settings().await?;
     
+    if settings.instances.len() >= 5 {
+        return Err("Batas maksimal pembuatan Instance adalah 5! Hapus instance lama untuk membuat yang baru.".to_string());
+    }
+    
     // Create a URL-safe slug from the instance name
     let mut base_id = name.to_lowercase().replace(|c: char| !c.is_alphanumeric(), "-");
     while base_id.contains("--") {
@@ -267,11 +271,16 @@ pub async fn delete_instance(instance_id: String) -> Result<(), String> {
     
     let instance_dir = get_global_game_dir().await.join("instances").join(&instance_id);
     settings.instances.retain(|inst| inst.id != instance_id);
-    if settings.active_instance_id == Some(instance_id) {
+    if settings.active_instance_id == Some(instance_id.clone()) {
         settings.active_instance_id = settings.instances.first().map(|i| i.id.clone());
     }
     
-    let _ = fs::remove_dir_all(&instance_dir).await;
+    if instance_dir.exists() {
+        if let Err(e) = fs::remove_dir_all(&instance_dir).await {
+            println!("Failed to delete instance folder: {}", e);
+        }
+    }
+    
     save_settings(settings).await?;
     Ok(())
 }

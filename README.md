@@ -1,197 +1,137 @@
-# 🎮 ND Launcher v0.0.5
+# 🎮 ND Launcher
 
-> Launcher Minecraft offline - Tauri v2 · Rust backend · Vanilla JS frontend
+**Minecraft Offline Launcher** — buat kamu yang mau main tanpa ribet. Multi-instance, mod pack manager, server Purpur lokal, dan integrasi skin Ely.by langsung di dalam app.
 
-[![Build Status](https://github.com/Nashdev0/ND-Launcher/actions/workflows/build-windows.yml/badge.svg)](https://github.com/Nashdev0/ND-Launcher/actions)
-[![Version](https://img.shields.io/badge/version-0.0.5-blue)](#)
-[![Platform](https://img.shields.io/badge/platform-Windows-blue?logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNiIgZmlsbD0iI2ZmZiI+PHBhdGggZD0iTTAsMS41UTAsMCwxLjUsMEgxNC41USoxNiwxLjUgMTYsMS41VjE0LjVxMCwxLjUtMS41LDEuNUgxLjVRMCwxNiwwLDE0LjVaTTMsM1gxMyBWMTNIM1oiLz48L3N2Zz4=)](#)
-[![Rust](https://img.shields.io/badge/rust-%23000?logo=rust&logoColor=orange)](#)
-[![Tauri](https://img.shields.io/badge/tauri-2.x-24c8d8?logo=tauri)](#)
-[![License](https://img.shields.io/badge/license-MIT-green)](#)
+Dibangun dengan **Tauri v2** (Rust backend + vanilla JS frontend) — ringan, cepat, dan aman.
 
 ---
 
-## ✨ Features
+## ✨ Kenapa ND Launcher?
 
-| Feature | Description |
-|---------|-------------|
-| **Multi-Instance** | Up to 5 instances with isolated mods & saves |
-| **Fabric Loader** | Auto-download + inject Fabric into game |
-| **Purpur Server** | Download & run Purpur server locally |
-| **SSH Tunnel** | Expose server to the internet via `pinggy.io` |
-| **Modrinth Integration** | Search & install mods directly from UI |
-| **Shader Manager** | Download & toggle shaderpacks per instance |
-| **Screenshot Capture** | Take screenshots while playing |
-| **Crash Analyzer** | Auto-read crash reports & latest.log |
-| **Java Auto-Detect** | Smart JVM selection based on MC version |
-| **Offline Auth** | Deterministic UUID (Ely.by optional) |
-| **Dark / Light Theme** | Toggle in settings |
+| | Launcher Biasa | ND Launcher |
+|---|---|---|
+| **Multi-Instance** | ❌ Tidak ada | ✅ Hingga 5 instance terpisah |
+| **Mod Download** | Manual satu-satu | ✅ Cari & install langsung dari UI |
+| **Server Lokal** | Harus command line | ✅ Start/stop + SSH tunneling |
+| **Crash Report** | Baca manual | ✅ Analisis otomatis |
+| **Skin System** | Upload ke website | ✅ Otomatis dari akun Ely.by |
 
 ---
 
-## 📸 Preview
+## 🚀 Fitur Utama
 
-<!-- Add a screenshot GIF or image here -->
-<!-- ![ND Launcher Preview](docs/screenshot.png) -->
+### 📦 Multi-Instance Manager
+Buat beberapa dunia Minecraft dengan setup berbeda — masing-masing punya mod, shader, dan config sendiri. Maksimum 5 instance aktif.
+
+### 🔧 Fabric Loader Auto-Inject
+Pilih versi Minecraft → launcher otomatis download Fabric loader, injeksi library, dan siap main. Tanpa konfigurasi manual.
+
+### 🟢 Modrinth Integration
+Cari ribuan mod langsung dari dalam app. Pilih versi, install, dan aktifkan — semua tanpa buka browser.
+
+### 🖥️ Purpur Server Hub
+Jalankan server Minecraft sendiri di komputer lokal. Dengan **SSH tunneling** via pinggy.io, server-mu bisa diakses teman dari internet.
+
+### 🧑‍💻 Ely.by Skin System
+Login pakai username Ely.by → avatar skin muncul otomatis di launcher. UUID deterministik, texture langsung diterapkan saat main.
+
+### 🛡️ Crash Analyzer
+Game crash? Launcher otomatis baca crash report terbaru dan beri kamu ringkasan masalahnya — bukan error code kosong.
+
+### ⚡ Java Auto-Detect
+Launcher pilihkan JDK yang tepat untuk version Minecraft kamu:
+- 1.17 – 1.20.4 → Java 17
+- 1.20.5 – 1.21.1 → Java 21
+- 1.21.2+ / 26.x → Java 25
+
+Auto-download dari Adoptium jika belum terinstall.
 
 ---
 
-## 🚀 Quick Start
-
-### Prerequisites
-
-- [Node.js](https://nodejs.org/) 18+
-- [Rust](https://www.rust-lang.org/tools/install)
-- [Tauri CLI](https://tauri.app/start/prerequisites/)
-
-```bash
-# Install dependencies
-npm install
-
-# Development mode (hot reload)
-npm run tauri dev
-
-# Production build
-npm run tauri build
-```
-
-Windows release binaries: `src-tauri/target/release/bundle/` (`.exe` NSIS + `.msi`)
-
----
-
-## 🏗 Project Structure
+## 📸 Tampilan
 
 ```
-ND-LAUNCHER-PROJEK/
-├── src/
-│   └── main.js              # Frontend (~1967 lines, vanilla JS)
-├── src-tauri/
-│   ├── src/
-│   │   ├── lib.rs           # @tauri::command registration
-│   │   ├── main.rs          # Entry point
-│   │   ├── settings.rs      # Account & instance management
-│   │   ├── java.rs          # Java version auto-detection
-│   │   ├── server.rs        # Purpur server runner
-│   │   ├── launcher.rs      # Game launch + Fabric injection
-│   │   └── screenshot.rs    # Screenshot capture
-│   └── tauri.conf.json
-└── .github/workflows/
-    └── build-windows.yml    # CI pipeline
+┌──────────────┬──────────────────────────────┬────────────────────┐
+│  LOGO        │  MAIN WORKSPACE              │  SERVER HUB      │
+│  ND Launcher │                              │                    │
+│              │  ┌────────────────────────┐  │  Purpur Server   │
+│  📰 News     │  │  [Multi-Instance]  │  │  Status: RUNNING │
+│  📦 Instansi │  │  Instance A (ON)   │  │  [Stop]        │
+│  🟢 Modrinth │  │  Instance B (OFF)  │  │  [Console]     │
+│  ✨ Shaders  │  └────────────────────────┘  │  [Tunnel]      │
+│  📸 Screenshot│                               │                    │
+│  ⚙️ Settings │  Avt: [skin]  Minecraft 1.21│  IP: tcp://...   │
+│              │         RAM: 4GB  ▶ PLAY   │                    │
+└──────────────┴──────────────────────────────┴────────────────────┘
 ```
 
 ---
 
-## 💾 Data Storage
+## 📥 Download
 
-All data lives in **`ND Launcher/`**:
-
-```
-C:\ND Launcher\               Windows
-~/ND Launcher/                Linux / macOS
-```
-
-```
-ND Launcher/
-├── game_data/
-│   ├── launcher_settings.json   ← accounts, instances, RAM, theme
-│   ├── instances/{id}/
-│   │   ├── mods/                ← .jar = active, .jar.disabled = inactive
-│   │   ├── shaderpacks/
-│   │   └── saves/
-│   ├── java/{17,21,25}/         ← Adoptium JRE (auto-downloaded)
-│   ├── skins/{username}.png     ← cached skin images
-│   └── libraries/               ← Fabric library cache
-└── server/{version}/            ← Purpur server files
-```
+### Windows (Release)
+[**Unduh Versi Terbaru**](https://github.com/Nashdev0/ND-Launcher/releases/latest)
+- Format: `.exe` (NSIS Installer) atau `.msi`
+- Ukuran: ~5MB
 
 ---
 
-## ⚡ Key Technical Details
+## 🗂️ Data Penyimpanan
 
-### Java → Minecraft Version Mapping
-
-| Minecraft Version | Java Version |
-|-------------------|-------------|
-| 1.21.2+ / 26.x | Java 25 |
-| 1.20.5 – 1.21.1 | Java 21 |
-| 1.17 – 1.20.4 | Java 17 |
-| Older | Java 8 |
-
-### JVM Flags (Aikar's Optimization)
-
-Applied automatically at launch via `launcher.rs`:
+Semua data ada di folder `ND Launcher/`:
 
 ```
--Xmx{ram_max}M -Xms{ram_min}M
--XX:+UseG1GC -XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=200
--XX:+AlwaysPreTouch -XX:InitiatingHeapOccupancyPercent=15 ...
+C:\ND Launcher\                Windows
+~/ND Launcher/                 Linux / macOS
 ```
 
-### External APIs Used
-
-| Source | Purpose |
-|--------|---------|
-| `modrinth.com/api` | Mod & plugin search/download |
-| `purpurmc.org/api` | Purpur version list & download |
-| `fabricmc.net/meta` | Fabric loader metadata |
-| `adoptium.net/api` | Automatic JRE download |
-| `ely.by` | Authlib injector & skin textures |
-| `mojang.com` | Official Minecraft version manifest |
+| Folder | Isi |
+|--------|-----|
+| `game_data/instances/` | Mod, saves, shaderpack per instance |
+| `game_data/java/` | JDK otomatis (17, 21, 25) |
+| `game_data/skins/` | Avatar skin cache |
+| `server/` | File server Purpur per versi |
 
 ---
 
-## ⚠️ Known Quirks
+## 🔄 Changelog
 
-| # | Issue | Detail |
-|---|-------|--------|
-| 1 | Max 5 instances | Must delete old instances before creating new ones |
-| 2 | Server bug | Always uses `java` from PATH, ignores custom Java path in settings |
-| 3 | Auth offline only | UUID is deterministic (`v3(nil, "OfflinePlayer:{name}")`), not real Mojang auth |
-| 4 | Mod toggle | Enables/disables by renaming `.jar` ↔ `.jar.disabled` - no content editing |
-| 5 | Iris skips Sodium | Mod resolver auto-excludes Sodium when installing Iris |
+### v0.0.5 — Ely.by Integration
+- Panel profil Ely.by otomatis (avatar, UUID, status skin)
+- Avatar skin tampil langsung di launcher
+- Cache API + deduplication prevent spam
+- Server console placeholder centered
+- 8 bug fixes & optimasi performa
 
----
+### v0.0.4 — Skin System
+- Akun offline bisa pakai skin Ely.by
+- Skin otomatis apply saat launch game
 
-## 🛠 Adding a New Command
-
-Two places must be updated - missing either one breaks the command:
-
-```rust
-// 1. Define the command
-#[tauri::command]
-async fn my_new_command() -> Result<String, String> { ... }
-
-// 2. Register in src-tauri/src/lib.rs generate_handler![]
-```
+### v0.0.3 — Modrinth Downloader Pro
+- Pilih versi spesifik mod
+- Re-install otomatis hapus mod lama
 
 ---
 
-## 📡 Event System
+## 💡 Cara Pakai
 
-Three custom Tauri events used in the frontend:
+1. **Download** launcher dari link di atas
+2. **Install** dan buka aplikasinya
+3. **Tambah akun** — masukkan username offline kamu
+4. **Pilih instance** dan versi Minecraft yang diinginkan
+5. **Klik "Launch"** — launcher akan download semua yang dibutuhkan
+6. **Nikmati!**
 
-| Event | Payload | Use Case |
-|-------|---------|----------|
-| `progress` | `{stage, message, current, total}` | Progress bar updates |
-| `game-log` | `string` | Stream game output; `[SYSTEM] Game exited` triggers crash analyzer |
-| `server-log` | `string` | Stream server console output |
-
----
-
-## 🐧 Building for Linux/macOS
-
-CI only targets Windows. For other platforms, build manually:
-
-```bash
-# macOS
-cargo build --release --target x86_64-apple-darwin
-
-# Linux
-cargo build --release --target x86_64-unknown-linux-gnu
-```
+Untuk skin kustom, login dengan akun **Ely.by** di menu Settings.
 
 ---
 
-## 📄 License
+## 📄 Lisensi
 
-Private project - **ND Launcher Demo**.
+Private project — **ND Launcher Demo**. Dibuat oleh Nashdev0.
+
+---
+
+<p align="center">
+  Made with ❤️ using <a href="https://tauri.app">Tauri</a> & <a href="https://www.rust-lang.org">Rust</a>
+</p>

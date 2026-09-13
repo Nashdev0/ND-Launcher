@@ -154,12 +154,12 @@ pub async fn add_account(username: String) -> Result<Account, String> {
 }
 
 #[tauri::command]
-pub async fn switch_account(account_id: String) -> Result<(), String> {
+pub async fn switch_account(accountId: String) -> Result<(), String> {
     let mut settings = get_settings().await?;
     
     let mut found = false;
     for acc in &mut settings.accounts {
-        if acc.id == account_id {
+        if acc.id == accountId {
             acc.is_active = true;
             found = true;
         } else {
@@ -168,7 +168,7 @@ pub async fn switch_account(account_id: String) -> Result<(), String> {
     }
     
     if found {
-        settings.active_account_id = Some(account_id);
+        settings.active_account_id = Some(accountId);
         save_settings(settings).await?;
         Ok(())
     } else {
@@ -177,11 +177,11 @@ pub async fn switch_account(account_id: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub async fn delete_account(account_id: String) -> Result<(), String> {
+pub async fn delete_account(accountId: String) -> Result<(), String> {
     let mut settings = get_settings().await?;
     
-    settings.accounts.retain(|acc| acc.id != account_id);
-    if settings.active_account_id == Some(account_id) {
+    settings.accounts.retain(|acc| acc.id != accountId);
+    if settings.active_account_id == Some(accountId) {
         settings.active_account_id = settings.accounts.first().map(|a| a.id.clone());
         if let Some(first_id) = &settings.active_account_id {
             for acc in &mut settings.accounts {
@@ -257,11 +257,11 @@ pub async fn create_instance(name: String, version: String, loader: String) -> R
 }
 
 #[tauri::command]
-pub async fn switch_instance(instance_id: String) -> Result<(), String> {
+pub async fn switch_instance(instanceId: String) -> Result<(), String> {
     let mut settings = get_settings().await?;
     
-    if settings.instances.iter().any(|inst| inst.id == instance_id) {
-        settings.active_instance_id = Some(instance_id);
+    if settings.instances.iter().any(|inst| inst.id == instanceId) {
+        settings.active_instance_id = Some(instanceId);
         save_settings(settings).await?;
         Ok(())
     } else {
@@ -270,12 +270,12 @@ pub async fn switch_instance(instance_id: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub async fn delete_instance(instance_id: String) -> Result<(), String> {
+pub async fn delete_instance(instanceId: String) -> Result<(), String> {
     let mut settings = get_settings().await?;
     
-    let instance_dir = get_global_game_dir().await.join("instances").join(&instance_id);
-    settings.instances.retain(|inst| inst.id != instance_id);
-    if settings.active_instance_id == Some(instance_id.clone()) {
+    let instance_dir = get_global_game_dir().await.join("instances").join(&instanceId);
+    settings.instances.retain(|inst| inst.id != instanceId);
+    if settings.active_instance_id == Some(instanceId.clone()) {
         settings.active_instance_id = settings.instances.first().map(|i| i.id.clone());
     }
     
@@ -296,50 +296,50 @@ pub async fn get_instances() -> Result<Vec<Instance>, String> {
 }
 
 #[tauri::command]
-pub async fn download_mod_to_instance(instance_id: String, download_url: String, file_name: String) -> Result<(), String> {
-    let instance_dir = get_global_game_dir().await.join("instances").join(&instance_id);
+pub async fn download_mod_to_instance(instanceId: String, downloadUrl: String, fileName: String) -> Result<(), String> {
+    let instance_dir = get_global_game_dir().await.join("instances").join(&instanceId);
     let mods_dir = instance_dir.join("mods");
-    
+
     if !mods_dir.exists() {
         let _ = fs::create_dir_all(&mods_dir).await;
     }
-    
-    let dest_path = mods_dir.join(&file_name);
-    
+
+    let dest_path = mods_dir.join(&fileName);
+
     if dest_path.exists() {
         return Err("Mod already exists in this instance!".to_string());
     }
-    
-    let mut response = reqwest::get(&download_url).await.map_err(|e| format!("Failed to download: {}", e))?;
+
+    let mut response = reqwest::get(&downloadUrl).await.map_err(|e| format!("Failed to download: {}", e))?;
     if !response.status().is_success() {
         return Err(format!("Download HTTP error: {}", response.status()));
     }
-    
+
     let mut file = std::fs::File::create(&dest_path).map_err(|e| format!("Failed to create mod file: {}", e))?;
     while let Some(chunk) = response.chunk().await.map_err(|e| format!("Failed to read chunk: {}", e))? {
         use std::io::Write;
         file.write_all(&chunk).map_err(|e| format!("Failed to save mod file: {}", e))?;
     }
-    
+
     Ok(())
 }
 
 #[tauri::command]
-pub async fn download_shader_to_instance(instance_id: String, download_url: String, file_name: String) -> Result<(), String> {
-    let instance_dir = get_global_game_dir().await.join("instances").join(&instance_id);
+pub async fn download_shader_to_instance(instanceId: String, downloadUrl: String, fileName: String) -> Result<(), String> {
+    let instance_dir = get_global_game_dir().await.join("instances").join(&instanceId);
     let shader_dir = instance_dir.join("shaderpacks");
     
     if !shader_dir.exists() {
         let _ = std::fs::create_dir_all(&shader_dir);
     }
     
-    let dest_path = shader_dir.join(&file_name);
+    let dest_path = shader_dir.join(&fileName);
     
     if dest_path.exists() {
         return Err("Shader already exists in this instance!".to_string());
     }
     
-    let mut response = reqwest::get(&download_url).await.map_err(|e| format!("Failed to download: {}", e))?;
+    let mut response = reqwest::get(&downloadUrl).await.map_err(|e| format!("Failed to download: {}", e))?;
     if !response.status().is_success() {
         return Err(format!("Download HTTP error: {}", response.status()));
     }
@@ -386,8 +386,8 @@ pub async fn copy_local_skin(username: String, source_path: String) -> Result<()
 }
 
 #[tauri::command]
-pub async fn get_instance_mods(instance_id: String) -> Result<Vec<ModInfo>, String> {
-    let mods_dir = get_global_game_dir().await.join("instances").join(&instance_id).join("mods");
+pub async fn get_instance_mods(instanceId: String) -> Result<Vec<ModInfo>, String> {
+    let mods_dir = get_global_game_dir().await.join("instances").join(&instanceId).join("mods");
     let mut mods = vec![];
     if mods_dir.exists() {
         let mut entries = fs::read_dir(mods_dir).await.map_err(|e| e.to_string())?;
@@ -408,19 +408,19 @@ pub async fn get_instance_mods(instance_id: String) -> Result<Vec<ModInfo>, Stri
 }
 
 #[tauri::command]
-pub async fn toggle_mod(instance_id: String, mod_name: String, enabled: bool) -> Result<(), String> {
-    let mods_dir = get_global_game_dir().await.join("instances").join(&instance_id).join("mods");
-    let target_path = mods_dir.join(&mod_name);
+pub async fn toggle_mod(instanceId: String, modName: String, enabled: bool) -> Result<(), String> {
+    let mods_dir = get_global_game_dir().await.join("instances").join(&instanceId).join("mods");
+    let target_path = mods_dir.join(&modName);
     if !target_path.exists() {
         return Err("Mod file not found".to_string());
     }
     
-    if enabled && mod_name.ends_with(".jar.disabled") {
-        let new_name = mod_name.replace(".jar.disabled", ".jar");
+    if enabled && modName.ends_with(".jar.disabled") {
+        let new_name = modName.replace(".jar.disabled", ".jar");
         let new_path = mods_dir.join(&new_name);
         fs::rename(target_path, new_path).await.map_err(|e| e.to_string())?;
-    } else if !enabled && mod_name.ends_with(".jar") {
-        let new_name = format!("{}.disabled", mod_name);
+    } else if !enabled && modName.ends_with(".jar") {
+        let new_name = format!("{}.disabled", modName);
         let new_path = mods_dir.join(&new_name);
         fs::rename(target_path, new_path).await.map_err(|e| e.to_string())?;
     }
@@ -429,9 +429,9 @@ pub async fn toggle_mod(instance_id: String, mod_name: String, enabled: bool) ->
 }
 
 #[tauri::command]
-pub async fn delete_mod(instance_id: String, mod_name: String) -> Result<(), String> {
-    let mods_dir = get_global_game_dir().await.join("instances").join(&instance_id).join("mods");
-    let target_path = mods_dir.join(&mod_name);
+pub async fn delete_mod(instanceId: String, modName: String) -> Result<(), String> {
+    let mods_dir = get_global_game_dir().await.join("instances").join(&instanceId).join("mods");
+    let target_path = mods_dir.join(&modName);
     
     if target_path.exists() {
         fs::remove_file(target_path).await.map_err(|e| e.to_string())?;
@@ -448,9 +448,9 @@ pub async fn get_app_version(app: tauri::AppHandle) -> Result<String, String> {
 }
 
 #[tauri::command]
-pub async fn get_latest_crash_log(instance_id: String) -> Result<String, String> {
+pub async fn get_latest_crash_log(instanceId: String) -> Result<String, String> {
     let base_dir = get_base_dir();
-    let instance_dir = base_dir.join("instances").join(&instance_id);
+    let instance_dir = base_dir.join("instances").join(&instanceId);
     let crash_reports_dir = instance_dir.join("crash-reports");
     let latest_log = instance_dir.join("logs").join("latest.log");
     
@@ -528,6 +528,14 @@ struct ElybySkin {
     url: String,
 }
 
+#[derive(Serialize, Deserialize)]
+pub struct ElybyAccountInfo {
+    pub uuid: String,
+    pub name: String,
+    pub skin_url: Option<String>,
+    pub has_custom_skin: bool,
+}
+
 pub async fn get_elyby_uuid(username: &str) -> Result<Option<String>, String> {
     let client = Client::new();
     let profiles_res = client
@@ -539,6 +547,132 @@ pub async fn get_elyby_uuid(username: &str) -> Result<Option<String>, String> {
         
     let profiles: Vec<ElybyProfile> = profiles_res.json().await.map_err(|e| e.to_string())?;
     Ok(profiles.first().map(|p| p.id.clone()))
+}
+
+#[tauri::command]
+pub async fn get_elyby_profile(username: String) -> Result<ElybyAccountInfo, String> {
+    let client = Client::new();
+    // 1. Get UUID
+    let profiles_res = client
+        .post("https://authserver.ely.by/api/profiles/minecraft")
+        .json(&vec![username.clone()])
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let profiles: Vec<ElybyProfile> = profiles_res.json().await.map_err(|e| e.to_string())?;
+    let profile = match profiles.first() {
+        Some(p) => p,
+        None => return Err(format!("Username '{}' not found on Ely.by", username)),
+    };
+
+    // 2. Get session with textures
+    let session_res = client
+        .get(format!(
+            "https://authserver.ely.by/api/authlib-injector/sessionserver/session/minecraft/profile/{}",
+            profile.id
+        ))
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let session_profile: ElybySessionProfile = session_res.json().await.map_err(|e| e.to_string())?;
+
+    // 3. Extract skin info
+    let textures_prop = match session_profile.properties.iter().find(|p| p.name == "textures") {
+        Some(p) => p,
+        None => {
+            return Ok(ElybyAccountInfo {
+                uuid: profile.id.clone(),
+                name: profile.name.clone(),
+                skin_url: None,
+                has_custom_skin: false,
+            })
+        }
+    };
+
+    use base64::Engine;
+    let decoded = base64::engine::general_purpose::STANDARD
+        .decode(&textures_prop.value)
+        .map_err(|e| e.to_string())?;
+    let decoded_str = String::from_utf8_lossy(&decoded);
+    let textures_val: ElybyTexturesValue =
+        serde_json::from_str(&decoded_str).map_err(|e| e.to_string())?;
+
+    let skin_url = match textures_val.textures.skin {
+        Some(s) => s.url,
+        None => {
+            return Ok(ElybyAccountInfo {
+                uuid: profile.id.clone(),
+                name: profile.name.clone(),
+                skin_url: None,
+                has_custom_skin: false,
+            })
+        }
+    };
+
+    let has_custom_skin = !skin_url.contains("minecraft.net/texture/");
+
+    Ok(ElybyAccountInfo {
+        uuid: profile.id.clone(),
+        name: profile.name.clone(),
+        skin_url: Some(skin_url),
+        has_custom_skin,
+    })
+}
+
+#[tauri::command]
+pub async fn get_elyby_face_url(username: &str) -> Result<String, String> {
+    let client = Client::new();
+    // Get UUID from Ely.by
+    let profiles_res = client
+        .post("https://authserver.ely.by/api/profiles/minecraft")
+        .json(&vec![username])
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let profiles: Vec<ElybyProfile> = profiles_res.json().await.map_err(|e| e.to_string())?;
+    let profile = match profiles.first() {
+        Some(p) => p,
+        None => return Ok(format!("https://mc-heads.net/head/{}/64", username)),
+    };
+
+    // Get session with textures
+    let session_res = client
+        .get(format!("https://authserver.ely.by/api/authlib-injector/sessionserver/session/minecraft/profile/{}", profile.id))
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let session_profile: ElybySessionProfile = session_res.json().await.map_err(|e| e.to_string())?;
+    let textures_prop = match session_profile.properties.iter().find(|p| p.name == "textures") {
+        Some(p) => p,
+        None => return Ok(format!("https://mc-heads.net/head/{}/64", username)),
+    };
+
+    use base64::Engine;
+    let decoded = base64::engine::general_purpose::STANDARD.decode(&textures_prop.value).map_err(|e| e.to_string())?;
+    let decoded_str = String::from_utf8_lossy(&decoded);
+    let textures_val: ElybyTexturesValue = serde_json::from_str(&decoded_str).map_err(|e| e.to_string())?;
+    let skin_url = match textures_val.textures.skin {
+        Some(s) => s.url,
+        None => return Ok(format!("https://mc-heads.net/head/{}/64", username)),
+    };
+
+    // mc-heads.net supports custom skin via ?skin= parameter for head render
+    Ok(format!("https://mc-heads.net/face/{}/64?skin={}", username, skin_url))
+}
+
+#[tauri::command]
+pub async fn get_elyby_head_data_url(username: &str) -> Result<String, String> {
+    use base64::Engine;
+    let bytes = match get_elyby_skin_bytes(username).await? {
+        Some(b) => b,
+        None => return Ok(format!("https://mc-heads.net/head/{}/64", username)),
+    };
+    let encoded = base64::engine::general_purpose::STANDARD.encode(&bytes);
+    Ok(format!("data:image/png;base64,{}", encoded))
 }
 
 pub async fn get_elyby_skin_bytes(username: &str) -> Result<Option<Vec<u8>>, String> {

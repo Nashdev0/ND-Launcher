@@ -83,10 +83,25 @@ pub async fn start_server(
         let _ = app.emit("server-log", "Download complete.".to_string());
     }
 
-    let _ = app.emit("server-log", format!("Starting server with RAM {}G", ram));
+    let _ = app.emit("server-log", format!("Starting server with RAM {} GB", ram));
     
+    // Resolve Java path — respect custom_java_path from settings
+    let java_bin = if let Ok(settings) = crate::settings::get_settings().await {
+        if let Some(ref path) = settings.custom_java_path {
+            if !path.trim().is_empty() && std::path::Path::new(path).exists() {
+                path.clone()
+            } else {
+                "java".to_string()
+            }
+        } else {
+            if cfg!(windows) { "java.exe".to_string() } else { "java".to_string() }
+        }
+    } else {
+        if cfg!(windows) { "java.exe".to_string() } else { "java".to_string() }
+    };
+
     // Spawn server process
-    let mut child = Command::new("java")
+    let mut child = Command::new(&java_bin)
         .current_dir(&server_dir)
         .arg(format!("-Xmx{}G", ram))
         .arg("-Xms1G")

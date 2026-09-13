@@ -12,6 +12,7 @@ pub struct ScreenshotInfo {
 }
 
 fn get_screenshots_dir(instance_id: &str) -> PathBuf {
+    // Screenshots are stored per-instance under base dir (same as AGENTS.md note #2)
     crate::settings::get_base_dir().join("instances").join(instance_id).join("screenshots")
 }
 

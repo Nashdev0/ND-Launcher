@@ -1,8 +1,8 @@
-# AGENTS.md — ND Launcher Demo v0.0.4
+# AGENTS.md - ND Launcher Demo v0.0.5
 
 Tauri v2 app: Rust backend + vanilla HTML/CSS/JS frontend. Minecraft launcher offline dengan Fabric loader, Purpur server hub, Modrinth mod downloader, crash analyzer.
 
-Frontend: `src/main.js` (1967 baris, tanpa framework). Backend: `src-tauri/src/` — modules: `launcher.rs`, `settings.rs`, `java.rs`, `server.rs`, `screenshot.rs`, `minecraft.rs`.
+Frontend: `src/main.js` (1967 baris, tanpa framework). Backend: `src-tauri/src/` - modules: `launcher.rs`, `settings.rs`, `java.rs`, `server.rs`, `screenshot.rs`, `minecraft.rs`.
 
 ## Perintah
 
@@ -34,7 +34,7 @@ ND Launcher/
   authlib-injector.jar           ← Ely.by (download on-demand saat launch)
 ```
 
-**PENTING**: Screenshot path beda — simpan di `base_dir/instances/{id}/screenshots/` (TIDAK pakai `game_data/`). Lihat `screenshot.rs:14-16`.
+**PENTING**: Screenshot path beda - simpan di `base_dir/instances/{id}/screenshots/` (TIDAK pakai `game_data/`). Lihat `screenshot.rs:14-16`.
 
 ## Quirks Kritis
 
@@ -44,11 +44,11 @@ ND Launcher/
 | 2 | **Auth offline** | UUID = `v3(nil, "OfflinePlayer:{username}")`, token `"0"`, userType `"legacy"` | `settings.rs:134`, `launcher.rs:594-613` |
 | 3 | **Java → MC mapping** | 1.21.2+/26.x→Java 25; 1.20.5–1.21.1→Java 21; 1.17–1.20.4→Java 17; lain→Java 8 | `java.rs:170-187` |
 | 4 | **Fabric injection** | Fetch meta dari `meta.fabricmc.net/v2/versions/loader/{ver}`, download ke `game_data/libraries/`, ganti main class | `launcher.rs:273-325` |
-| 5 | **Server pakai `java` PATH** | BUKAN custom Java path dari settings — ini bug/quirk penting | `server.rs:89` |
+| 5 | **Server pakai `java` PATH** | BUKAN custom Java path dari settings - ini bug/quirk penting | `server.rs:89` |
 | 6 | **Crash log** | Cek `crash-reports/` (file < 1 jam), fallback ke `logs/latest.log` | `settings.rs:451-495` |
-| 7 | **Mod toggle** | Rename file `.jar` ↔ `.jar.disabled` — bukan edit konten | `settings.rs:411-429` |
+| 7 | **Mod toggle** | Rename file `.jar` ↔ `.jar.disabled` - bukan edit konten | `settings.rs:411-429` |
 | 8 | **Iris skip Sodium** | Dep resolver frontend skip Sodium (`AANobbMI`) kalau install Iris | `main.js:634` |
-| 9 | **Crate type wajib tetap** | Jangan ubah `["staticlib", "cdylib", "rlib"]` — Tauri v2 requirement | `Cargo.toml:14-15` |
+| 9 | **Crate type wajib tetap** | Jangan ubah `["staticlib", "cdylib", "rlib"]` - Tauri v2 requirement | `Cargo.toml:14-15` |
 | 10 | **Frontend invoke pattern** | Semua panggil command Rust via `window.__TAURI__.core.invoke()`. Frontend hanya fetch langsung untuk: Modrinth API, GitHub API, Purpur API, Ely.by API | `main.js:1-5` |
 
 ## Cara Tambah Command Baru

@@ -8,6 +8,10 @@ let activeUsernameDisplay;
 let addAccountBtn;
 let deleteAccountBtn;
 let currentActiveAccount = null;
+let elybyAvatarCache = {};
+let elybyAvatarPromises = {};
+let elybyProfileCache = {};
+let elybyProfilePromise = null;
 
 let customVersionWrapper;
 let customVersionDisplay;
@@ -117,7 +121,7 @@ async function fetchInstances() {
         card.innerHTML = `
           <div style="display: flex; justify-content: space-between; align-items: start;">
             <span class="tag" style="background: var(--accent); color: white;">${inst.version} ${inst.loader.toUpperCase()}</span>
-            <button class="btn btn-danger" data-id="${inst.id}" style="padding: 2px 6px; font-size: 10px; border:none; background: #ffebee; color: var(--danger);">HAPUS</button>
+            <button class="btn btn-danger" data-id="${inst.id}" data-name="${inst.name}" style="padding: 2px 6px; font-size: 10px; border:none; background: #ffebee; color: var(--danger);">HAPUS</button>
           </div>
           <h4 style="margin-top: 8px;">${inst.name}</h4>
           <p>Local Instance</p>
@@ -167,6 +171,81 @@ async function fetchInstances() {
   }
 }
 
+async function getCachedElybyAvatar(username) {
+  if (elybyAvatarCache[username]) return elybyAvatarCache[username];
+  if (elybyAvatarPromises[username]) return elybyAvatarPromises[username];
+  const promise = (async () => {
+    try {
+      const url = await invoke("get_elyby_head_data_url", { username });
+      elybyAvatarCache[username] = url;
+      return url;
+    } catch (e) {
+      return `https://mc-heads.net/head/${username}/64`;
+    } finally {
+      delete elybyAvatarPromises[username];
+    }
+  })();
+  elybyAvatarPromises[username] = promise;
+  return promise;
+}
+
+async function getCachedElybyProfile(username) {
+  if (elybyProfileCache[username]) return elybyProfileCache[username];
+  if (elybyProfilePromise) return elybyProfilePromise;
+  const promise = (async () => {
+    try {
+      const profile = await invoke("get_elyby_profile", { username });
+      elybyProfileCache[username] = profile;
+      return profile;
+    } catch (e) {
+      console.log("Ely.by profile not found for:", username, e);
+      return null;
+    } finally {
+      elybyProfilePromise = null;
+    }
+  })();
+  elybyProfilePromise = promise;
+  return promise;
+}
+
+async function updateElybyProfileDisplay() {
+  if (!currentActiveAccount) return;
+
+  const loading = document.querySelector("#elyby-loading");
+  const content = document.querySelector("#elyby-content");
+  const offline = document.querySelector("#elyby-offline");
+
+  if (!loading || !content || !offline) return;
+
+  loading.style.display = "block";
+  content.style.display = "none";
+  offline.style.display = "none";
+
+  const profile = await getCachedElybyProfile(currentActiveAccount.username);
+
+  if (profile) {
+    document.querySelector("#elyby-username").textContent = profile.name;
+    document.querySelector("#elyby-uuid").textContent = profile.uuid.substring(0, 8) + "...";
+
+    if (profile.has_custom_skin) {
+      document.querySelector("#elyby-skin-status").textContent = "✅ Skin kustom aktif";
+      document.querySelector("#elyby-skin-status").style.color = "var(--success)";
+    } else {
+      document.querySelector("#elyby-skin-status").textContent = "⚪ Skin default";
+      document.querySelector("#elyby-skin-status").style.color = "var(--text-muted)";
+    }
+
+    const skinDataUrl = await getCachedElybyAvatar(currentActiveAccount.username);
+    document.querySelector("#elyby-avatar").src = skinDataUrl;
+
+    loading.style.display = "none";
+    content.style.display = "block";
+  } else {
+    loading.style.display = "none";
+    offline.style.display = "block";
+  }
+}
+
 async function fetchAccounts() {
   try {
     let accounts = await invoke("get_accounts");
@@ -176,7 +255,7 @@ async function fetchAccounts() {
 
     if (accounts.length === 0) {
       accountSelect.innerHTML = `<option value="">No accounts found</option>`;
-      avatarImg.src = "https://mc-heads.net/avatar/Steve/64";
+      avatarImg.src = "https://mc-heads.net/head/Steve/64";
       activeUsernameDisplay.textContent = "Please add an account";
       return;
     }
@@ -201,34 +280,32 @@ async function fetchAccounts() {
       await invoke("switch_account", { accountId: currentActiveAccount.id });
     }
 
-    // Render avatar for active account
+    // Render avatar — FIRE AND FORGET, jangan block fetchAccounts()
     if (currentActiveAccount) {
-      try {
-        let skinBytes = await invoke("get_local_skin_data", { username: currentActiveAccount.username });
-        if (skinBytes && skinBytes.length > 0) {
-          let blob = new Blob([new Uint8Array(skinBytes)], { type: "image/png" });
-          let url = URL.createObjectURL(blob);
-          avatarImg.src = "data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs="; // transparent 1x1 gif
-          avatarImg.style.backgroundImage = `url("${url}")`;
-          avatarImg.style.backgroundPosition = "-8px -8px";
-          avatarImg.style.backgroundSize = "64px 64px";
-          avatarImg.style.width = "64px"; // Container is 64x64
-          avatarImg.style.height = "64px";
-          // We want the 8x8 face to fill the 64x64 container.
-          // Since it's a background image, backgroundSize=64*8 = 512px
-          // backgroundPosition = -8*8 = -64px
-          avatarImg.style.backgroundSize = "512px 512px";
-          avatarImg.style.backgroundPosition = "-64px -64px";
-          avatarImg.style.imageRendering = "pixelated";
-          avatarImg.style.borderRadius = "4px";
-        } else {
-          avatarImg.style = "border-radius: 4px;";
-          avatarImg.src = `https://mc-heads.net/avatar/${currentActiveAccount.username}/64`;
-        }
-      } catch (e) {
-        avatarImg.style = "border-radius: 4px;";
-        avatarImg.src = `https://mc-heads.net/avatar/${currentActiveAccount.username}/64`;
-      }
+      getCachedElybyAvatar(currentActiveAccount.username).then((skinDataUrl) => {
+        setTimeout(() => {
+          if (!skinDataUrl || !avatarImg) return;
+          if (skinDataUrl.startsWith("data:")) {
+            const img = new Image();
+            img.onload = () => {
+              const c = document.createElement("canvas");
+              c.width = 64;
+              c.height = 64;
+              const ctx = c.getContext("2d");
+              ctx.imageSmoothingEnabled = false;
+              ctx.drawImage(img, 8, 8, 8, 8, 0, 0, 64, 64);
+              avatarImg.src = c.toDataURL();
+            };
+            img.src = skinDataUrl;
+          } else {
+            avatarImg.src = skinDataUrl || `https://mc-heads.net/head/${currentActiveAccount?.username}/64`;
+          }
+        }, 0);
+      }).catch(() => {
+        if (avatarImg) avatarImg.src = `https://mc-heads.net/head/${currentActiveAccount?.username}/64`;
+      });
+      // Also update Ely.by profile display
+      updateElybyProfileDisplay();
     }
   } catch (e) {
     accountSelect.innerHTML = `<option value="">Error: ${e.message || e}</option>`;
@@ -334,7 +411,7 @@ async function launchGame() {
     currentSettings.active_account_id = currentActiveAccount.id;
 
     let ramValue = parseInt(document.querySelector("#settings-ram-max").value) || 4096;
-    currentSettings.ram_min = ramValue;
+    currentSettings.ram_min = ramValue / 4;
     currentSettings.ram_max = ramValue;
 
     await invoke("save_settings", { settings: currentSettings });
@@ -436,8 +513,7 @@ async function openModManager(instanceId, instanceName) {
             modName: mod.name,
             enabled: !mod.enabled
           });
-          // Refresh list
-          openModManager(instanceId, instanceName);
+          modal.style.display = "none"; // Close modal, user can reopen
         } catch (err) {
           alert("Gagal mengubah status mod: " + err);
         }
@@ -455,8 +531,7 @@ async function openModManager(instanceId, instanceName) {
               instanceId,
               modName: mod.name
             });
-            // Refresh list
-            openModManager(instanceId, instanceName);
+            modal.style.display = "none"; // Close modal, user can reopen
           } catch (err) {
             alert("Gagal menghapus mod: " + err);
           }
@@ -587,10 +662,10 @@ async function searchModrinth(query) {
           }
 
           if (isInstalled) {
-            let existingMod = installedMods.find(m => m.name.toLowerCase().includes(slug.toLowerCase()) || m.id.toLowerCase().includes(slug.toLowerCase()));
+            let existingMod = installedMods.find(m => m.name.toLowerCase().includes(slug.toLowerCase()));
             if (existingMod) {
               try {
-                await invoke("delete_mod", { instanceId: currentActiveInstance.id, modId: existingMod.id });
+                await invoke("delete_mod", { instanceId: currentActiveInstance.id, modName: existingMod.name });
               } catch (err) {
                 console.log("Failed to delete old mod", err);
               }
@@ -979,33 +1054,34 @@ window.addEventListener("DOMContentLoaded", async () => {
     }
   });
 
-  let changeSkinBtn = document.querySelector("#btn-change-skin");
-  if (changeSkinBtn) {
-    changeSkinBtn.addEventListener("click", async () => {
-      if (!currentActiveAccount) return;
+  // Ely.by profile buttons
+  const manageElybyBtn = document.querySelector("#btn-manage-elyby");
+  if (manageElybyBtn) {
+    manageElybyBtn.addEventListener("click", async () => {
       try {
-        const selected = await invoke('plugin:dialog|open', {
-          options: {
-            multiple: false,
-            filters: [{ name: 'Image', extensions: ['png'] }]
-          }
-        });
-        if (selected) {
-          await invoke("copy_local_skin", {
-            username: currentActiveAccount.username,
-            sourcePath: selected
-          });
-          alert("Skin berhasil diganti! (Pastikan Anda menginstal mod CustomSkinLoader/OfflineSkins untuk memuatnya di dalam game)");
-          // Force refresh avatar by appending timestamp
-          avatarImg.src = `http://localhost:25560/skin/${currentActiveAccount.username}.png?t=${Date.now()}`;
-          // Wait, we don't have a local server for skins right now, but we can load file directly!
-          // Tauri allows reading via convertFileSrc.
+        if (window.__TAURI__?.shell) {
+          await window.__TAURI__.shell.open("https://ely.by");
+        } else if (window.__TAURI__?.core) {
+          await window.__TAURI__.core.invoke("plugin:opener|open", { path: "https://ely.by" });
+        } else {
+          window.open("https://ely.by", "_blank");
         }
       } catch (e) {
-        console.error("Gagal mengganti skin:", e);
+        console.error("Failed to open Ely.by:", e);
+        window.open("https://ely.by", "_blank");
       }
     });
   }
+
+  const refreshElybyBtn = document.querySelector("#btn-refresh-elyby");
+  if (refreshElybyBtn) {
+    refreshElybyBtn.addEventListener("click", async () => {
+      elybyProfileCache = {};
+      elybyAvatarCache = {};
+      await updateElybyProfileDisplay();
+    });
+  }
+
 
   // TABS LOGIC
   let navInstances = document.querySelector("#nav-instances");
@@ -1409,12 +1485,16 @@ window.addEventListener("DOMContentLoaded", async () => {
     document.getElementById("crash-understood-btn").onclick = () => modal.style.display = "none";
   }
 
-  // Server Console Logic
-  serverConsole = document.querySelector("#server-console");
-  if (serverConsole) {
-    let currentProgressLine = null;
-    listen("server-log", (event) => {
-      let payload = event.payload;
+   // Server Console Logic
+   serverConsole = document.querySelector("#server-console");
+   if (serverConsole) {
+     let currentProgressLine = null;
+     listen("server-log", (event) => {
+       // Hide placeholder on first log
+       const placeholder = document.querySelector("#server-console-placeholder");
+       if (placeholder) placeholder.style.display = "none";
+
+       let payload = event.payload;
 
       if (payload.startsWith("[Progress]")) {
         if (currentProgressLine) {
@@ -1934,7 +2014,10 @@ window.addEventListener("DOMContentLoaded", async () => {
     try {
       const currentVersion = await invoke("get_app_version");
       const res = await fetch("https://api.github.com/repos/Nashdev0/ND-Launcher/releases/latest");
-      if (!res.ok) return;
+      if (!res.ok) {
+        console.warn(`[Update Checker] GitHub API returned ${res.status}. Pastikan ada minimal satu Release di repo.`);
+        return;
+      }
       const data = await res.json();
 
       let latestVersion = data.tag_name;

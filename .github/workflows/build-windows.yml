@@ -5,6 +5,9 @@ on:
     branches: [ "main" ]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build-tauri:
     name: Build Tauri on Windows
@@ -32,6 +35,10 @@ jobs:
     - name: Install Node dependencies
       run: npm install
 
+    - name: Get app version
+      id: get_version
+      run: echo "ver=$(grep '^version' src-tauri/Cargo.toml | head -1 | cut -d'"' -f2)" >> $GITHUB_OUTPUT
+
     - name: Build the app
       run: npm run tauri build
 
@@ -42,3 +49,19 @@ jobs:
         path: |
           src-tauri/target/release/bundle/nsis/*.exe
           src-tauri/target/release/bundle/msi/*.msi
+
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v2
+      if: success()
+      with:
+        tag_name: v${{ steps.get_version.outputs.ver }}
+        name: ND Launcher v${{ steps.get_version.outputs.ver }}
+        body: |
+          ## Changelog v${{ steps.get_version.outputs.ver }}
+          - Auto-release dari CI pipeline
+        files: |
+          src-tauri/target/release/bundle/nsis/*.exe
+          src-tauri/target/release/bundle/msi/*.msi
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+

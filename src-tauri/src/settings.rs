@@ -41,6 +41,9 @@ pub struct LauncherSettings {
     // UI Theme
     pub theme: String, // "light" or "dark"
     
+    // Skin Integration
+    pub use_elyby: Option<bool>,
+    
     // Custom Paths
     pub custom_java_path: Option<String>,
     pub custom_game_dir: Option<String>,
@@ -62,6 +65,7 @@ impl Default for LauncherSettings {
             ram_min: 1024,
             ram_max: 4096,
             theme: "light".to_string(),
+            use_elyby: Some(false),
             custom_java_path: None,
             custom_game_dir: None,
             custom_server_dir: None,
@@ -357,6 +361,15 @@ pub async fn get_local_skin_data(username: String) -> Result<Option<Vec<u8>>, St
         let bytes = std::fs::read(&user_skin).map_err(|e| e.to_string())?;
         Ok(Some(bytes))
     } else {
+        let settings = get_settings().await?;
+        if settings.use_elyby.unwrap_or(false) {
+            if let Ok(Some(bytes)) = get_elyby_skin_bytes(&username).await {
+                // Save it locally so we don't spam Ely.by API every UI refresh
+                let _ = std::fs::create_dir_all(&skins_dir);
+                let _ = std::fs::write(&user_skin, &bytes);
+                return Ok(Some(bytes));
+            }
+        }
         Ok(None)
     }
 }
@@ -432,4 +445,146 @@ pub async fn delete_mod(instance_id: String, mod_name: String) -> Result<(), Str
 #[tauri::command]
 pub async fn get_app_version(app: tauri::AppHandle) -> Result<String, String> {
     Ok(app.package_info().version.to_string())
+}
+
+#[tauri::command]
+pub async fn get_latest_crash_log(instance_id: String) -> Result<String, String> {
+    let base_dir = get_base_dir();
+    let instance_dir = base_dir.join("instances").join(&instance_id);
+    let crash_reports_dir = instance_dir.join("crash-reports");
+    let latest_log = instance_dir.join("logs").join("latest.log");
+    
+    // Check crash-reports first
+    if crash_reports_dir.exists() {
+        if let Ok(mut entries) = tokio::fs::read_dir(&crash_reports_dir).await {
+            let mut latest_file = None;
+            let mut latest_time = std::time::UNIX_EPOCH;
+            
+            while let Ok(Some(entry)) = entries.next_entry().await {
+                if let Ok(metadata) = entry.metadata().await {
+                    if let Ok(modified) = metadata.modified() {
+                        if modified > latest_time {
+                            latest_time = modified;
+                            latest_file = Some(entry.path());
+                        }
+                    }
+                }
+            }
+            
+            if let Some(path) = latest_file {
+                // If it's a new crash report within the last hour
+                if let Ok(elapsed) = latest_time.elapsed() {
+                    if elapsed.as_secs() < 3600 {
+                        if let Ok(content) = tokio::fs::read_to_string(&path).await {
+                            return Ok(content);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    // Fallback to logs/latest.log
+    if latest_log.exists() {
+        if let Ok(content) = tokio::fs::read_to_string(&latest_log).await {
+            return Ok(content);
+        }
+    }
+    
+    Err("No crash logs found.".to_string())
+}
+use reqwest::Client;
+
+#[derive(Deserialize)]
+struct ElybyProfile {
+    id: String,
+    name: String,
+}
+
+#[derive(Deserialize)]
+struct ElybySessionProfile {
+    properties: Vec<ElybyProperty>,
+}
+
+#[derive(Deserialize)]
+struct ElybyProperty {
+    name: String,
+    value: String,
+}
+
+#[derive(Deserialize)]
+struct ElybyTexturesValue {
+    textures: ElybyTextures,
+}
+
+#[derive(Deserialize)]
+struct ElybyTextures {
+    #[serde(rename = "SKIN")]
+    skin: Option<ElybySkin>,
+}
+
+#[derive(Deserialize)]
+struct ElybySkin {
+    url: String,
+}
+
+pub async fn get_elyby_uuid(username: &str) -> Result<Option<String>, String> {
+    let client = Client::new();
+    let profiles_res = client
+        .post("https://authserver.ely.by/api/profiles/minecraft")
+        .json(&vec![username])
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+        
+    let profiles: Vec<ElybyProfile> = profiles_res.json().await.map_err(|e| e.to_string())?;
+    Ok(profiles.first().map(|p| p.id.clone()))
+}
+
+pub async fn get_elyby_skin_bytes(username: &str) -> Result<Option<Vec<u8>>, String> {
+    let client = Client::new();
+    // 1. Get UUID
+    let profiles_res = client
+        .post("https://authserver.ely.by/api/profiles/minecraft")
+        .json(&vec![username])
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+        
+    let profiles: Vec<ElybyProfile> = profiles_res.json().await.map_err(|e| e.to_string())?;
+    let profile = match profiles.first() {
+        Some(p) => p,
+        None => return Ok(None),
+    };
+    
+    // 2. Get Session Profile
+    let session_res = client
+        .get(format!("https://authserver.ely.by/api/authlib-injector/sessionserver/session/minecraft/profile/{}", profile.id))
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+        
+    let session_profile: ElybySessionProfile = session_res.json().await.map_err(|e| e.to_string())?;
+    
+    // 3. Extract Textures URL
+    let textures_prop = match session_profile.properties.iter().find(|p| p.name == "textures") {
+        Some(p) => p,
+        None => return Ok(None),
+    };
+    
+    use base64::Engine;
+    let decoded = base64::engine::general_purpose::STANDARD.decode(&textures_prop.value).map_err(|e| e.to_string())?;
+    let decoded_str = String::from_utf8_lossy(&decoded);
+    let textures_val: ElybyTexturesValue = serde_json::from_str(&decoded_str).map_err(|e| e.to_string())?;
+    
+    let skin_url = match textures_val.textures.skin {
+        Some(s) => s.url,
+        None => return Ok(None),
+    };
+    
+    // 4. Download Skin
+    let skin_res = client.get(&skin_url).send().await.map_err(|e| e.to_string())?;
+    let bytes = skin_res.bytes().await.map_err(|e| e.to_string())?.to_vec();
+    
+    Ok(Some(bytes))
 }

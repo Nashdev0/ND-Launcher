@@ -228,32 +228,44 @@ pub async fn launch_game(app: AppHandle, username: String, uuid_str: String, ver
     
     let _ = app.emit("progress", ProgressPayload { stage: "init".into(), message: "Fetching manifest...".into(), current: 0, total: 100 });
     
-    // 1. Fetch main manifest to get version URL
-    let manifest_url = "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json";
-    let manifest_resp = reqwest::Client::new().get(manifest_url).send().await.map_err(|e| e.to_string())?;
+    let version_dir = global_game_dir.join("versions").join(&version);
+    if !version_dir.exists() {
+        let _ = fs::create_dir_all(&version_dir).await;
+    }
+    let version_json_path = version_dir.join(format!("{}.json", version));
     
-    let manifest_json: serde_json::Value = manifest_resp.json().await.map_err(|e| e.to_string())?;
-    let versions = manifest_json["versions"].as_array().ok_or("Invalid manifest")?;
-    
-    let mut version_json_url = String::new();
-    for v in versions {
-        if v["id"].as_str() == Some(version.as_str()) {
-            if let Some(url) = v["url"].as_str() {
-                version_json_url = url.to_string();
-                break;
+    let version_data: VersionJson = if version_json_path.exists() {
+        let content = fs::read_to_string(&version_json_path).await.map_err(|e| e.to_string())?;
+        serde_json::from_str(&content).map_err(|e| e.to_string())?
+    } else {
+        let manifest_url = "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json";
+        let manifest_resp = dl_client.get(manifest_url).send().await.map_err(|e| e.to_string())?;
+        
+        let manifest_json: serde_json::Value = manifest_resp.json().await.map_err(|e| e.to_string())?;
+        let versions = manifest_json["versions"].as_array().ok_or("Invalid manifest")?;
+        
+        let mut version_json_url = String::new();
+        for v in versions {
+            if v["id"].as_str() == Some(version.as_str()) {
+                if let Some(url) = v["url"].as_str() {
+                    version_json_url = url.to_string();
+                    break;
+                }
             }
         }
-    }
-    
-    if version_json_url.is_empty() {
-        return Err(format!("Version {} not found in manifest", version));
-    }
-
-    let response = reqwest::Client::new().get(&version_json_url).send().await.map_err(|e| e.to_string())?;
-    let version_data: VersionJson = response.json().await.map_err(|e| format!("Error decoding response body: {}", e))?;
+        
+        if version_json_url.is_empty() {
+            return Err(format!("Version {} not found in manifest", version));
+        }
+        
+        let response = dl_client.get(&version_json_url).send().await.map_err(|e| e.to_string())?;
+        let json_text = response.text().await.map_err(|e| e.to_string())?;
+        let _ = fs::write(&version_json_path, &json_text).await;
+        serde_json::from_str(&json_text).map_err(|e| format!("Error decoding response body: {}", e))?
+    };
 
     let _ = app.emit("progress", ProgressPayload { stage: "libraries".into(), message: "Downloading client.jar...".into(), current: 1, total: version_data.libraries.len() + 1 });
-    let client_jar_path = global_game_dir.join(format!("versions/{0}/{0}.jar", version));
+    let client_jar_path = version_dir.join(format!("{}.jar", version));
     download_file(&dl_client, &version_data.downloads.client.url, &client_jar_path).await?;
 
     let mut classpath_entries = vec![client_jar_path.to_string_lossy().to_string()];
@@ -267,16 +279,28 @@ pub async fn launch_game(app: AppHandle, username: String, uuid_str: String, ver
 
     if loader_type == "fabric" {
         let _ = app.emit("progress", ProgressPayload { stage: "fabric".into(), message: "Fetching Fabric Meta...".into(), current: 0, total: 100 });
-        let meta_url = format!("https://meta.fabricmc.net/v2/versions/loader/{}", version);
-        let meta_resp = reqwest::Client::new().get(&meta_url).send().await.map_err(|e| e.to_string())?;
-        let fabric_versions: Vec<FabricLoaderMeta> = meta_resp.json().await.map_err(|e| e.to_string())?;
+        let fabric_json_path = version_dir.join("fabric.json");
         
-        if let Some(latest_fabric) = fabric_versions.first() {
-            let profile_url = format!("https://meta.fabricmc.net/v2/versions/loader/{}/{}/profile/json", version, latest_fabric.loader.version);
-            let profile_resp = reqwest::Client::new().get(&profile_url).send().await.map_err(|e| e.to_string())?;
-            let fabric_profile: FabricProfile = profile_resp.json().await.map_err(|e| format!("Fabric JSON Error: {}", e))?;
+        let fabric_profile: FabricProfile = if fabric_json_path.exists() {
+            let content = fs::read_to_string(&fabric_json_path).await.map_err(|e| e.to_string())?;
+            serde_json::from_str(&content).map_err(|e| format!("Fabric JSON parse error: {}", e))?
+        } else {
+            let meta_url = format!("https://meta.fabricmc.net/v2/versions/loader/{}", version);
+            let meta_resp = dl_client.get(&meta_url).send().await.map_err(|e| e.to_string())?;
+            let fabric_versions: Vec<FabricLoaderMeta> = meta_resp.json().await.map_err(|e| e.to_string())?;
             
-            main_class_to_run = fabric_profile.main_class;
+            if let Some(latest_fabric) = fabric_versions.first() {
+                let profile_url = format!("https://meta.fabricmc.net/v2/versions/loader/{}/{}/profile/json", version, latest_fabric.loader.version);
+                let profile_resp = dl_client.get(&profile_url).send().await.map_err(|e| e.to_string())?;
+                let profile_text = profile_resp.text().await.map_err(|e| e.to_string())?;
+                let _ = fs::write(&fabric_json_path, &profile_text).await;
+                serde_json::from_str(&profile_text).map_err(|e| format!("Fabric Profile parse error: {}", e))?
+            } else {
+                return Err(format!("Fabric loader not found for version {}", version));
+            }
+        };
+        
+        main_class_to_run = fabric_profile.main_class;
             
             for f_lib in fabric_profile.libraries {
                 // name is like "net.fabricmc:fabric-loader:0.15.7"
@@ -298,13 +322,12 @@ pub async fn launch_game(app: AppHandle, username: String, uuid_str: String, ver
                     classpath_entries.push(lib_path.to_string_lossy().to_string());
                 }
             }
-        }
     }
     // --- END FABRIC INJECTION ---
 
     let total_libs = version_data.libraries.len();
     
-    let sem_libs = Arc::new(Semaphore::new(20));
+    let sem_libs = Arc::new(Semaphore::new(50));
     let comp_libs = Arc::new(std::sync::atomic::AtomicUsize::new(0));
     let mut handles_libs = vec![];
     
@@ -361,7 +384,7 @@ pub async fn launch_game(app: AppHandle, username: String, uuid_str: String, ver
         }).collect();
 
     let total_assets = objects.len();
-    let semaphore = Arc::new(Semaphore::new(20)); // Max 20 concurrent downloads
+    let semaphore = Arc::new(Semaphore::new(150)); // Max 150 concurrent downloads
     let mut handles = vec![];
     let app_clone = app.clone();
     
@@ -479,6 +502,28 @@ pub async fn launch_game(app: AppHandle, username: String, uuid_str: String, ver
     }
     // --- END OFFLINE SKIN ---
 
+    // --- ELY.BY SKIN SYSTEM ---
+    if settings.use_elyby.unwrap_or(false) {
+        let _ = app.emit("progress", ProgressPayload { 
+            stage: "elyby".into(),
+            message: "Configuring Ely.by Skin System...".into(),
+            current: 0, 
+            total: 1 
+        });
+        
+        let authlib_path = global_game_dir.join("authlib-injector.jar");
+        if !authlib_path.exists() {
+            let _ = app.emit("progress", ProgressPayload { 
+                stage: "elyby".into(),
+                message: "Downloading authlib-injector...".into(),
+                current: 0, 
+                total: 1 
+            });
+            let authlib_url = "https://github.com/yushijinhun/authlib-injector/releases/download/v1.2.5/authlib-injector-1.2.5.jar";
+            let _ = download_file(&dl_client, authlib_url, &authlib_path).await;
+        }
+    }
+
     let mut java_bin = if cfg!(windows) { "java.exe".to_string() } else { "java".to_string() };
     if let Some(path) = &settings.custom_java_path {
         if !path.trim().is_empty() {
@@ -502,12 +547,51 @@ pub async fn launch_game(app: AppHandle, username: String, uuid_str: String, ver
         java_bin = java_bin.replace("java.exe", "javaw.exe");
     }
 
-    let mut child = tokio::process::Command::new(java_bin)
-        .current_dir(&instance_dir)
+    let mut cmd = tokio::process::Command::new(java_bin);
+    cmd.current_dir(&instance_dir)
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped())
         .arg(format!("-Xmx{}M", settings.ram_max))
-        .arg(format!("-Xms{}M", settings.ram_min))
+        .arg(format!("-Xms{}M", settings.ram_min));
+        
+    if settings.use_elyby.unwrap_or(false) {
+        let authlib_path = global_game_dir.join("authlib-injector.jar");
+        cmd.arg(format!("-javaagent:{}=https://authserver.ely.by/api/authlib-injector", authlib_path.to_string_lossy()));
+    }
+        
+    // --- Global Potato PC Optimization (Aikar's Flags) ---
+    let opt_flags = vec![
+        "-XX:+UseG1GC",
+        "-XX:+ParallelRefProcEnabled",
+        "-XX:MaxGCPauseMillis=200",
+        "-XX:+UnlockExperimentalVMOptions",
+        "-XX:+DisableExplicitGC",
+        "-XX:+AlwaysPreTouch",
+        "-XX:G1NewSizePercent=30",
+        "-XX:G1MaxNewSizePercent=40",
+        "-XX:G1HeapRegionSize=8M",
+        "-XX:G1ReservePercent=20",
+        "-XX:G1HeapWastePercent=5",
+        "-XX:G1MixedGCCountTarget=4",
+        "-XX:InitiatingHeapOccupancyPercent=15",
+        "-XX:G1MixedGCLiveThresholdPercent=90",
+        "-XX:G1RSetUpdatingPauseTimePercent=5",
+        "-XX:SurvivorRatio=32",
+        "-XX:+PerfDisableSharedMem",
+        "-XX:MaxTenuringThreshold=1",
+    ];
+    for flag in opt_flags {
+        cmd.arg(flag);
+    }
+    
+    let mut final_uuid = uuid_str;
+    if settings.use_elyby.unwrap_or(false) {
+        if let Ok(Some(elyby_uuid)) = crate::settings::get_elyby_uuid(&username).await {
+            final_uuid = elyby_uuid;
+        }
+    }
+
+    let mut child = cmd
         .arg("-cp")
         .arg(classpath)
         .arg(&main_class_to_run)
@@ -522,7 +606,7 @@ pub async fn launch_game(app: AppHandle, username: String, uuid_str: String, ver
         .arg("--assetIndex")
         .arg(&asset_index_id)
         .arg("--uuid")
-        .arg(&uuid_str)
+        .arg(&final_uuid)
         .arg("--accessToken")
         .arg("0")
         .arg("--userType")
@@ -557,8 +641,14 @@ pub async fn launch_game(app: AppHandle, username: String, uuid_str: String, ver
     });
 
     tokio::spawn(async move {
-        let _ = child.wait().await;
-        let _ = app_exit.emit("game-log", "[SYSTEM] Game exited.".to_string());
+        let status = child.wait().await;
+        let mut exit_code = 0;
+        if let Ok(st) = status {
+            if let Some(code) = st.code() {
+                exit_code = code;
+            }
+        }
+        let _ = app_exit.emit("game-log", format!("[SYSTEM] Game exited with code: {}", exit_code));
     });
 
     Ok(format!("Minecraft {} launched with PID {}", version, child_id))

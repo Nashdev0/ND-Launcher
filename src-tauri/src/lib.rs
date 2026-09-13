@@ -43,6 +43,7 @@ pub fn run() {
             settings::copy_local_skin,
             settings::get_local_skin_data,
             settings::get_instance_mods,
+            settings::get_latest_crash_log,
             settings::toggle_mod,
             settings::delete_mod,
             java::get_installed_java,

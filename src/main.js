@@ -38,16 +38,16 @@ async function fetchVersions() {
   try {
     let versions = await invoke("get_minecraft_versions");
     customVersionOptions.innerHTML = "";
-    
+
     if (versions.length === 0) {
       customVersionDisplay.textContent = "No versions found";
       return;
     }
-    
+
     let defaultSelected = versions.length > 0 ? versions[0].id : "";
     versionSelectHidden.value = defaultSelected;
     customVersionDisplay.textContent = defaultSelected;
-    
+
     versions.forEach(v => {
       let div = document.createElement("div");
       div.className = "custom-option";
@@ -68,12 +68,12 @@ async function fetchInstances() {
   try {
     let instances = await invoke("get_instances");
     let settings = await invoke("get_settings");
-    
+
     let instancesGrid = document.querySelector("#instances-grid");
     if (instancesGrid) instancesGrid.innerHTML = "";
     if (customInstanceOptions) customInstanceOptions.innerHTML = "";
     currentActiveInstance = null;
-    
+
     if (instances.length === 0) {
       if (customInstanceDisplay) customInstanceDisplay.textContent = "Belum ada instance";
       if (instanceSelectHidden) instanceSelectHidden.value = "";
@@ -81,7 +81,7 @@ async function fetchInstances() {
     }
 
     let activeId = settings.active_instance_id || instances[0].id;
-    
+
     instances.forEach(inst => {
       // 1. Render in bottom dock
       let optDiv = document.createElement("div");
@@ -93,12 +93,12 @@ async function fetchInstances() {
         customInstanceOptions.classList.remove("open");
       });
       if (customInstanceOptions) customInstanceOptions.appendChild(optDiv);
-      
+
       if (inst.id === activeId) {
         currentActiveInstance = inst;
         if (customInstanceDisplay) customInstanceDisplay.textContent = `${inst.name} (${inst.version} ${inst.loader})`;
         if (instanceSelectHidden) instanceSelectHidden.value = inst.id;
-        
+
         // Check if Modrinth tab should show warning
         let modWarning = document.querySelector("#modrinth-warning");
         if (modWarning) {
@@ -109,7 +109,7 @@ async function fetchInstances() {
           }
         }
       }
-      
+
       // 2. Render in Grid View
       if (instancesGrid) {
         let card = document.createElement("div");
@@ -145,7 +145,7 @@ async function fetchInstances() {
     document.querySelectorAll(".btn-danger[data-id]").forEach(btn => {
       btn.addEventListener("click", async (e) => {
         let id = e.target.getAttribute("data-id");
-        if(confirm("Yakin ingin menghapus instance ini?")) {
+        if (confirm("Yakin ingin menghapus instance ini?")) {
           await invoke("delete_instance", { instanceId: id });
           await fetchInstances();
         }
@@ -173,14 +173,14 @@ async function fetchAccounts() {
     let settings = await invoke("get_settings");
     accountSelect.innerHTML = "";
     currentActiveAccount = null;
-    
+
     if (accounts.length === 0) {
       accountSelect.innerHTML = `<option value="">No accounts found</option>`;
       avatarImg.src = "https://mc-heads.net/avatar/Steve/64";
       activeUsernameDisplay.textContent = "Please add an account";
       return;
     }
-    
+
     accountSelect.innerHTML = `<option value="">-- Pilih Akun --</option>`;
     accounts.forEach(acc => {
       let opt = document.createElement("option");
@@ -190,23 +190,17 @@ async function fetchAccounts() {
         opt.selected = true;
         currentActiveAccount = acc;
         activeUsernameDisplay.textContent = acc.username;
-        // Check if local skin exists by checking if convertFileSrc resolves, or just use it with onerror fallback
-        let { convertFileSrc } = window.__TAURI__.core;
-        // In Tauri v2, convertFileSrc is in core.
-        // Wait, since we don't have absolute path, we can just fetch from a custom command or just rely on mc-heads!
-        // For now, let's keep it simple and just use mc-heads.net.
-        avatarImg.src = `https://mc-heads.net/avatar/${acc.username}/64`;
       }
       accountSelect.appendChild(opt);
     });
-    
+
     if (!currentActiveAccount && accounts.length > 0) {
       currentActiveAccount = accounts[0];
       accountSelect.value = currentActiveAccount.id;
       activeUsernameDisplay.textContent = currentActiveAccount.username;
       await invoke("switch_account", { accountId: currentActiveAccount.id });
     }
-    
+
     // Render avatar for active account
     if (currentActiveAccount) {
       try {
@@ -237,7 +231,7 @@ async function fetchAccounts() {
       }
     }
   } catch (e) {
-    accountSelect.innerHTML = `<option value="">Error loading accounts</option>`;
+    accountSelect.innerHTML = `<option value="">Error: ${e.message || e}</option>`;
   }
 }
 
@@ -245,7 +239,7 @@ async function fetchJavaInstallations() {
   try {
     let installations = await invoke("get_installed_java");
     let settings = await invoke("get_settings");
-    
+
     // Update javaAutoSelect (in case it still exists on main screen)
     if (javaAutoSelect) {
       javaAutoSelect.innerHTML = `<option value="">System Default</option>`;
@@ -333,17 +327,22 @@ async function launchGame() {
 
   statusMsg.textContent = "Menyiapkan...";
   launchBtn.disabled = true;
-  
+
   try {
     // Save settings safely
     let currentSettings = await invoke("get_settings");
     currentSettings.active_account_id = currentActiveAccount.id;
+
+    let ramValue = parseInt(document.querySelector("#settings-ram-max").value) || 4096;
+    currentSettings.ram_min = ramValue;
+    currentSettings.ram_max = ramValue;
+
     await invoke("save_settings", { settings: currentSettings });
 
-    let result = await invoke("launch_game", { 
-      username: currentActiveAccount.username, 
+    let result = await invoke("launch_game", {
+      username: currentActiveAccount.username,
       uuidStr: currentActiveAccount.uuid,
-      version: currentActiveInstance.version, 
+      version: currentActiveInstance.version,
       ram: 4, // Ignored in Rust (uses global settings instead)
       javaPath: currentSettings.custom_java_path,
       instanceId: currentActiveInstance.id
@@ -375,7 +374,7 @@ async function fetchPurpurVersions() {
         sel.appendChild(opt);
       });
     }
-  } catch(e) {
+  } catch (e) {
     sel.innerHTML = `<option value="1.20.4">1.20.4 (offline)</option>`;
   }
 }
@@ -386,71 +385,71 @@ async function openModManager(instanceId, instanceName) {
   let modal = document.querySelector("#mod-manager-modal");
   let title = document.querySelector("#mod-manager-title");
   let container = document.querySelector("#mod-list-container");
-  
-  if(!modal || !container) return;
-  
+
+  if (!modal || !container) return;
+
   title.textContent = `Kelola Mod: ${instanceName}`;
   container.innerHTML = "Memuat mod...";
   modal.style.display = "flex";
-  
+
   let closeBtn = document.querySelector("#close-mod-manager");
   closeBtn.onclick = () => { modal.style.display = "none"; };
-  
+
   try {
     let mods = await invoke("get_instance_mods", { instanceId });
     container.innerHTML = "";
-    
+
     if (mods.length === 0) {
       container.innerHTML = "<p style='color: var(--text-muted);'>Belum ada mod yang terpasang di instance ini.</p>";
       return;
     }
-    
+
     mods.forEach(mod => {
       let modCard = document.createElement("div");
       modCard.className = "panel";
       modCard.style.cssText = "display: flex; justify-content: space-between; align-items: center; padding: 12px; margin-bottom: 8px;";
-      
+
       let nameLabel = document.createElement("span");
       nameLabel.textContent = mod.name.replace(".jar.disabled", "").replace(".jar", "");
       nameLabel.style.fontWeight = "500";
       nameLabel.style.fontSize = "14px";
-      if(!mod.enabled) {
+      if (!mod.enabled) {
         nameLabel.style.color = "var(--text-muted)";
         nameLabel.style.textDecoration = "line-through";
       }
-      
+
       let actionContainer = document.createElement("div");
       actionContainer.style.display = "flex";
       actionContainer.style.gap = "8px";
 
       let toggleBtn = document.createElement("button");
       toggleBtn.className = "btn";
-      toggleBtn.style.cssText = mod.enabled 
-        ? "background: var(--success); color: white; border: none; font-size: 12px; padding: 6px 12px;" 
+      toggleBtn.style.cssText = mod.enabled
+        ? "background: var(--success); color: white; border: none; font-size: 12px; padding: 6px 12px;"
         : "background: #f1f3f5; color: var(--text-muted); border: none; font-size: 12px; padding: 6px 12px;";
       toggleBtn.textContent = mod.enabled ? "ON" : "OFF";
-      
+
       toggleBtn.addEventListener("click", async () => {
         try {
-          await invoke("toggle_mod", { 
-            instanceId, 
-            modName: mod.name, 
-            enabled: !mod.enabled 
+          await invoke("toggle_mod", {
+            instanceId,
+            modName: mod.name,
+            enabled: !mod.enabled
           });
           // Refresh list
           openModManager(instanceId, instanceName);
-        } catch(err) {
+        } catch (err) {
           alert("Gagal mengubah status mod: " + err);
         }
       });
-      
+
       let deleteBtn = document.createElement("button");
       deleteBtn.className = "btn";
       deleteBtn.style.cssText = "background: #ffebee; color: var(--danger); border: none; font-size: 12px; padding: 6px 12px;";
       deleteBtn.innerHTML = "Hapus";
-      
+
       deleteBtn.addEventListener("click", async () => {
-        if(confirm(`Yakin ingin menghapus ${mod.name}?`)) {
+        if (confirm(`Yakin ingin menghapus ${mod.name}?`)) {
           try {
             await invoke("delete_mod", {
               instanceId,
@@ -458,20 +457,20 @@ async function openModManager(instanceId, instanceName) {
             });
             // Refresh list
             openModManager(instanceId, instanceName);
-          } catch(err) {
+          } catch (err) {
             alert("Gagal menghapus mod: " + err);
           }
         }
       });
-      
+
       actionContainer.appendChild(toggleBtn);
       actionContainer.appendChild(deleteBtn);
-      
+
       modCard.appendChild(nameLabel);
       modCard.appendChild(actionContainer);
       container.appendChild(modCard);
     });
-  } catch(e) {
+  } catch (e) {
     container.innerHTML = "Gagal memuat mod: " + e;
   }
 }
@@ -480,46 +479,46 @@ async function searchModrinth(query) {
   let grid = document.querySelector("#modrinth-grid");
   if (!grid) return;
   grid.innerHTML = "Memuat data dari Modrinth...";
-  
+
   if (!currentActiveInstance) {
     grid.innerHTML = "Pilih instance terlebih dahulu!";
     return;
   }
-  
+
   try {
     let loader = currentActiveInstance.loader.toLowerCase();
     let mc_version = currentActiveInstance.version;
     let facets = `[["versions:${mc_version}"],["categories:${loader}"],["project_type:mod"]]`;
     let url = `https://api.modrinth.com/v2/search?query=${encodeURIComponent(query)}&facets=${encodeURIComponent(facets)}&limit=10`;
-    
+
     let res = await fetch(url);
     let data = await res.json();
-    
+
     grid.innerHTML = "";
     if (data.hits.length === 0) {
       grid.innerHTML = "Mod tidak ditemukan.";
       return;
     }
-    
+
     // Fetch installed mods to check which are already installed
     let installedMods = [];
     try {
       installedMods = await invoke("get_instance_mods", { instanceId: currentActiveInstance.id });
-    } catch(e) { /* ignore */ }
+    } catch (e) { /* ignore */ }
     let installedNames = installedMods.map(m => m.name.toLowerCase());
-    
+
     data.hits.forEach(mod => {
       let card = document.createElement("div");
       card.className = "news-card panel";
-      
+
       // Try to find the exact target version
       let targetVersionLabel = mc_version;
       if (mod.versions && mod.versions.includes(mc_version)) {
         targetVersionLabel = mc_version;
       }
-      
-      let downloads = mod.downloads >= 1000000 ? (mod.downloads / 1000000).toFixed(1) + "M" : 
-                      mod.downloads >= 1000 ? (mod.downloads / 1000).toFixed(1) + "K" : mod.downloads;
+
+      let downloads = mod.downloads >= 1000000 ? (mod.downloads / 1000000).toFixed(1) + "M" :
+        mod.downloads >= 1000 ? (mod.downloads / 1000).toFixed(1) + "K" : mod.downloads;
 
       // Check if mod is already installed (match slug against filenames)
       let isInstalled = installedNames.some(name => name.includes(mod.slug.toLowerCase()));
@@ -545,7 +544,7 @@ async function searchModrinth(query) {
         <button class="btn ${isInstalled ? '' : 'btn-primary'} mod-install-btn" data-slug="${mod.slug}" data-is-installed="${isInstalled}" style="width: 100%; ${isInstalled ? 'background: var(--accent); color: white; border: none;' : ''}">${isInstalled ? 'Ganti Versi / Re-install' : 'Install'}</button>
       `;
       grid.appendChild(card);
-      
+
       // Async fetch versions for this mod
       fetch(`https://api.modrinth.com/v2/project/${mod.slug}/version?loaders=["${loader}"]&game_versions=["${mc_version}"]`)
         .then(res => res.json())
@@ -570,13 +569,13 @@ async function searchModrinth(query) {
           if (select) select.innerHTML = `<option value="">Error memuat versi</option>`;
         });
     });
-    
+
     grid.querySelectorAll(".mod-install-btn").forEach(btn => {
       btn.addEventListener("click", async (e) => {
         let slug = e.target.getAttribute("data-slug");
         e.target.textContent = "Menganalisa...";
         e.target.disabled = true;
-        
+
         try {
           let isInstalled = e.target.getAttribute("data-is-installed") === "true";
           let specificVersionId = document.getElementById(`ver-${slug}`).value;
@@ -586,7 +585,7 @@ async function searchModrinth(query) {
             e.target.disabled = false;
             return;
           }
-          
+
           if (isInstalled) {
             let existingMod = installedMods.find(m => m.name.toLowerCase().includes(slug.toLowerCase()) || m.id.toLowerCase().includes(slug.toLowerCase()));
             if (existingMod) {
@@ -601,15 +600,15 @@ async function searchModrinth(query) {
           // Recursive Dependency Resolver
           let downloadQueue = [];
           let resolvedSet = new Set();
-          
+
           async function resolveDeps(projectId, specificVerId = null) {
-            let verUrl = specificVerId ? 
-              `https://api.modrinth.com/v2/version/${specificVerId}` : 
+            let verUrl = specificVerId ?
+              `https://api.modrinth.com/v2/version/${specificVerId}` :
               `https://api.modrinth.com/v2/project/${projectId}/version?loaders=["${loader}"]&game_versions=["${mc_version}"]`;
-            
+
             let verRes = await fetch(verUrl);
             if (!verRes.ok) return;
-            
+
             let version;
             if (specificVerId) {
               version = await verRes.json();
@@ -619,16 +618,16 @@ async function searchModrinth(query) {
                 version = verData[0];
               }
             }
-            
+
             if (version) {
               let file = version.files.find(f => f.primary) || version.files[0];
-              
+
               if (!resolvedSet.has(file.url)) {
                 resolvedSet.add(file.url);
                 downloadQueue.push(file);
                 e.target.textContent = `Menganalisa... (${downloadQueue.length} files)`;
               }
-              
+
               if (version.dependencies && version.dependencies.length > 0) {
                 for (let dep of version.dependencies) {
                   // Skip Sodium (AANobbMI) if we are installing Iris, as newer Iris embeds it or user prefers standalone
@@ -642,23 +641,23 @@ async function searchModrinth(query) {
               }
             }
           }
-          
+
           await resolveDeps(slug, specificVersionId);
-          
+
           if (downloadQueue.length === 0) {
             alert("Versi file yang cocok tidak ditemukan.");
             e.target.textContent = "Install";
             e.target.disabled = false;
             return;
           }
-          
+
           e.target.textContent = `Mengunduh... (0/${downloadQueue.length})`;
-          
+
           let successCount = 0;
           let promises = downloadQueue.map(async (file) => {
             try {
-              await invoke("download_mod_to_instance", { 
-                instanceId: currentActiveInstance.id, 
+              await invoke("download_mod_to_instance", {
+                instanceId: currentActiveInstance.id,
                 downloadUrl: file.url,
                 fileName: file.filename
               });
@@ -672,21 +671,21 @@ async function searchModrinth(query) {
               }
             }
           });
-          
+
           await Promise.all(promises);
-          
+
           e.target.textContent = "✓ Terpasang";
           e.target.style.background = "var(--success)";
           e.target.style.color = "white";
           e.target.style.border = "none";
           e.target.setAttribute("data-is-installed", "true");
-          
+
           // Refresh installed mods in memory so if they click again it can find the new file
           try {
             installedMods = await invoke("get_instance_mods", { instanceId: currentActiveInstance.id });
-          } catch(e) {}
-          
-        } catch(err) {
+          } catch (e) { }
+
+        } catch (err) {
           alert("Gagal: " + err);
           let isInstalled = e.target.getAttribute("data-is-installed") === "true";
           e.target.textContent = isInstalled ? "Ganti Versi / Re-install" : "Install";
@@ -694,8 +693,8 @@ async function searchModrinth(query) {
         }
       });
     });
-    
-  } catch(e) {
+
+  } catch (e) {
     grid.innerHTML = "Gagal mengambil data dari Modrinth.";
   }
 }
@@ -704,33 +703,33 @@ async function searchModrinthShaders(query) {
   let grid = document.querySelector("#shaders-grid");
   if (!grid) return;
   grid.innerHTML = "Memuat data dari Modrinth...";
-  
+
   if (!currentActiveInstance) {
     grid.innerHTML = "Pilih instance terlebih dahulu!";
     return;
   }
-  
+
   try {
     let mc_version = currentActiveInstance.version;
     // We only filter by version and project_type:shader since shaders work for both Iris/Optifine usually.
     let facets = `[["versions:${mc_version}"],["project_type:shader"]]`;
     let url = `https://api.modrinth.com/v2/search?query=${encodeURIComponent(query)}&facets=${encodeURIComponent(facets)}&limit=10`;
-    
+
     let res = await fetch(url);
     let data = await res.json();
-    
+
     grid.innerHTML = "";
     if (data.hits.length === 0) {
       grid.innerHTML = "Shader tidak ditemukan.";
       return;
     }
-    
+
     data.hits.forEach(shader => {
       let card = document.createElement("div");
       card.className = "news-card panel";
-      
-      let downloads = shader.downloads >= 1000000 ? (shader.downloads / 1000000).toFixed(1) + "M" : 
-                      shader.downloads >= 1000 ? (shader.downloads / 1000).toFixed(1) + "K" : shader.downloads;
+
+      let downloads = shader.downloads >= 1000000 ? (shader.downloads / 1000000).toFixed(1) + "M" :
+        shader.downloads >= 1000 ? (shader.downloads / 1000).toFixed(1) + "K" : shader.downloads;
 
       card.innerHTML = `
         <div style="display: flex; gap: 12px; align-items: start; margin-bottom: 12px;">
@@ -749,7 +748,7 @@ async function searchModrinthShaders(query) {
       `;
       grid.appendChild(card);
     });
-    
+
     grid.querySelectorAll(".shader-install-btn").forEach(btn => {
       btn.addEventListener("click", async (e) => {
         let slug = e.target.getAttribute("data-slug");
@@ -762,8 +761,8 @@ async function searchModrinthShaders(query) {
           let verData = await verRes.json();
           if (verData.length > 0) {
             let file = verData[0].files.find(f => f.primary) || verData[0].files[0];
-            await invoke("download_shader_to_instance", { 
-              instanceId: currentActiveInstance.id, 
+            await invoke("download_shader_to_instance", {
+              instanceId: currentActiveInstance.id,
               downloadUrl: file.url,
               fileName: file.filename
             });
@@ -776,7 +775,7 @@ async function searchModrinthShaders(query) {
             e.target.textContent = "Install";
             e.target.disabled = false;
           }
-        } catch(err) {
+        } catch (err) {
           let errStr = String(err);
           if (errStr.toLowerCase().includes("already exists")) {
             e.target.textContent = "✓ Terpasang";
@@ -791,20 +790,20 @@ async function searchModrinthShaders(query) {
         }
       });
     });
-    
-  } catch(e) {
+
+  } catch (e) {
     grid.innerHTML = "Gagal mengambil data dari Modrinth.";
   }
 }
 
 window.addEventListener("DOMContentLoaded", async () => {
-  
+
   accountSelect = document.querySelector("#account-select");
   avatarImg = document.querySelector("#avatar-img");
   activeUsernameDisplay = document.querySelector("#active-username-display");
   addAccountBtn = document.querySelector("#add-account-btn");
   deleteAccountBtn = document.querySelector("#delete-account-btn");
-  
+
   customVersionWrapper = document.querySelector("#custom-version-wrapper");
   customVersionDisplay = document.querySelector("#custom-version-display");
   customVersionOptions = document.querySelector("#custom-version-options");
@@ -864,7 +863,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   // Setup Custom Dropdown for RAM
   customRamDisplay = document.querySelector("#custom-ram-display");
   customRamOptions = document.querySelector("#custom-ram-options");
-  
+
   if (customRamDisplay && customRamOptions) {
     // Populate RAM 1GB to 8GB
     for (let i = 1; i <= 8; i++) {
@@ -911,9 +910,9 @@ window.addEventListener("DOMContentLoaded", async () => {
   statusMsg = document.querySelector("#status-msg");
   launchBtn = document.querySelector("#launch-btn");
   logBox = document.querySelector("#log-box");
-  
+
   // Removed sidebar toggle since it is just an indicator
-  
+
   // Load settings
   let settings = await invoke("get_settings");
   if (ramSelect && settings) {
@@ -926,7 +925,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   if (settings.custom_java_path) {
     javaCustomInput.value = settings.custom_java_path;
   }
-  
+
   // Parallel fetch
   await Promise.all([
     fetchAccounts(),
@@ -949,13 +948,13 @@ window.addEventListener("DOMContentLoaded", async () => {
     if (username && username.trim() !== "") {
       await invoke("add_account", { username: username.trim() });
       if (inputEl) inputEl.value = "";
-      
+
       // Hide form, show button again
       if (showAddAccountBtn && addAccountForm) {
         showAddAccountBtn.style.display = "block";
         addAccountForm.style.display = "none";
       }
-      
+
       await fetchAccounts();
     }
   });
@@ -965,7 +964,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     cancelAccountBtn.addEventListener("click", () => {
       let inputEl = document.querySelector("#new-account-input");
       if (inputEl) inputEl.value = "";
-      
+
       if (showAddAccountBtn && addAccountForm) {
         showAddAccountBtn.style.display = "block";
         addAccountForm.style.display = "none";
@@ -985,16 +984,16 @@ window.addEventListener("DOMContentLoaded", async () => {
     changeSkinBtn.addEventListener("click", async () => {
       if (!currentActiveAccount) return;
       try {
-        const selected = await invoke('plugin:dialog|open', { 
-          options: { 
+        const selected = await invoke('plugin:dialog|open', {
+          options: {
             multiple: false,
             filters: [{ name: 'Image', extensions: ['png'] }]
-          } 
+          }
         });
         if (selected) {
-          await invoke("copy_local_skin", { 
-            username: currentActiveAccount.username, 
-            sourcePath: selected 
+          await invoke("copy_local_skin", {
+            username: currentActiveAccount.username,
+            sourcePath: selected
           });
           alert("Skin berhasil diganti! (Pastikan Anda menginstal mod CustomSkinLoader/OfflineSkins untuk memuatnya di dalam game)");
           // Force refresh avatar by appending timestamp
@@ -1015,7 +1014,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   let navShaders = document.querySelector("#nav-shaders");
   let navSettings = document.querySelector("#nav-settings");
   let navScreenshots = document.querySelector("#nav-screenshots");
-  
+
   let viewInstances = document.querySelector("#view-instances");
   let viewNews = document.querySelector("#view-news");
   let viewModrinth = document.querySelector("#view-modrinth");
@@ -1026,7 +1025,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   function switchTab(activeNav, activeView) {
     [navInstances, navNews, navModrinth, navShaders, navSettings, navScreenshots].forEach(n => n && n.classList.remove("active"));
     [viewInstances, viewNews, viewModrinth, viewShaders, viewSettings, viewScreenshots].forEach(v => v && (v.style.display = "none"));
-    
+
     if (activeNav) activeNav.classList.add("active");
     if (activeView) activeView.style.display = "block";
   }
@@ -1066,7 +1065,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     shadersSearchInput.addEventListener("keydown", (e) => {
       if (e.key === "Enter") searchModrinthShaders(shadersSearchInput.value);
     });
-    
+
     // Initial fetch for shaders
     setTimeout(() => {
       searchModrinthShaders("");
@@ -1126,7 +1125,18 @@ window.addEventListener("DOMContentLoaded", async () => {
           }
         }
 
-        await invoke("create_instance", { name, version: ver, loader });
+        let newInst = await invoke("create_instance", { name, version: ver, loader });
+
+        let potatoCheck = document.getElementById("auto-optimize-mods");
+        if (potatoCheck && potatoCheck.checked && loader === "fabric") {
+          let originalBtnText = confirmCreateBtn.textContent;
+          confirmCreateBtn.disabled = true;
+          confirmCreateBtn.textContent = "Memasang Mod Optimasi...";
+          await installOptimizationMods(newInst.id, ver, loader);
+          confirmCreateBtn.textContent = originalBtnText;
+          confirmCreateBtn.disabled = false;
+        }
+
         newInstanceName.value = "";
         showCreateBtn.style.display = "block";
         createForm.style.display = "none";
@@ -1137,13 +1147,66 @@ window.addEventListener("DOMContentLoaded", async () => {
     });
   }
 
+  async function installOptimizationMods(instanceId, mc_version, loader) {
+    let mods = ["sodium", "lithium", "ferrite-core", "modmenu"];
+    let downloadQueue = [];
+    let resolvedSet = new Set();
+
+    async function resolveDeps(projectId) {
+      let verUrl = `https://api.modrinth.com/v2/project/${projectId}/version?loaders=["${loader}"]&game_versions=["${mc_version}"]`;
+      try {
+        let verRes = await fetch(verUrl);
+        if (!verRes.ok) return;
+        let verData = await verRes.json();
+        if (verData.length > 0) {
+          let version = verData[0];
+          let file = version.files.find(f => f.primary) || version.files[0];
+          if (!resolvedSet.has(file.url)) {
+            resolvedSet.add(file.url);
+            downloadQueue.push(file);
+          }
+          if (version.dependencies && version.dependencies.length > 0) {
+            for (let dep of version.dependencies) {
+              if (dep.dependency_type === "required" && dep.project_id) {
+                await resolveDeps(dep.project_id);
+              }
+            }
+          }
+        }
+      } catch (e) { console.error(e); }
+    }
+
+    for (let slug of mods) {
+      await resolveDeps(slug);
+    }
+
+    if (downloadQueue.length === 0) {
+      alert("Gagal mengunduh mod optimasi otomatis. Pastikan versi Minecraft (" + mc_version + ") penulisan versinya benar (contoh: 1.21.1) dan didukung oleh Fabric.");
+      return;
+    }
+
+    let promises = downloadQueue.map(file => {
+      return invoke("download_mod_to_instance", {
+        instanceId: instanceId,
+        downloadUrl: file.url,
+        fileName: file.filename
+      });
+    });
+
+    try {
+      await Promise.all(promises);
+    } catch (e) {
+      console.error("Gagal install optimasi", e);
+    }
+  }
+
   // Server Hub Wiring
   let startServerBtn = document.querySelector("#start-server-btn");
   let serverStatusBadge = document.querySelector("#server-status-badge");
   let serverVersionSelect = document.querySelector("#server-version-select");
   let serverRamSelect = document.querySelector("#server-ram-select");
   let serverConsole = document.querySelector("#server-console");
-  
+
   let isServerRunning = false;
 
   if (startServerBtn) {
@@ -1154,7 +1217,7 @@ window.addEventListener("DOMContentLoaded", async () => {
         alert("Pilih versi terlebih dahulu");
         return;
       }
-      
+
       if (!isServerRunning) {
         startServerBtn.textContent = "MEMULAI...";
         startServerBtn.style.background = "var(--text-muted)";
@@ -1165,7 +1228,7 @@ window.addEventListener("DOMContentLoaded", async () => {
           let ram = parseInt(serverRamSelect.value);
 
           await invoke("start_server", { core, version, ram });
-          
+
           isServerRunning = true;
           startServerBtn.textContent = "◼ STOP SERVER";
           startServerBtn.style.background = "var(--danger)";
@@ -1193,7 +1256,7 @@ window.addEventListener("DOMContentLoaded", async () => {
           serverStatusBadge.textContent = "OFF";
           serverStatusBadge.style.background = "";
           serverStatusBadge.style.color = "";
-          
+
           // Reset tunnel UI
           if (startTunnelBtn) startTunnelBtn.style.display = "block";
           if (tunnelInfoContainer) tunnelInfoContainer.style.display = "none";
@@ -1213,7 +1276,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     try {
       let ip = await invoke("get_local_ip");
       localIpDisplay.value = ip;
-    } catch(e) {
+    } catch (e) {
       localIpDisplay.value = "Tidak terdeteksi";
     }
   }
@@ -1238,14 +1301,14 @@ window.addEventListener("DOMContentLoaded", async () => {
       startTunnelBtn.style.display = "none";
       tunnelInfoContainer.style.display = "flex";
       tunnelIpDisplay.value = "Membuat tunnel...";
-      
+
       try {
         // By default Minecraft runs on 25565. We pass 25565.
         let url = await invoke("start_tunnel", { port: 25565 });
         // Clean up the URL format (Pinggy returns something like "tcp://xyz...:1234")
         if (url.startsWith("tcp://")) url = url.substring(6);
         tunnelIpDisplay.value = url;
-      } catch(e) {
+      } catch (e) {
         tunnelIpDisplay.value = "Gagal membuat tunnel";
         startTunnelBtn.style.display = "block";
         startTunnelBtn.textContent = "Coba Lagi";
@@ -1267,7 +1330,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     let payload = event.payload;
     let percentage = payload.total > 0 ? Math.round((payload.current / payload.total) * 100) : 0;
     statusMsg.textContent = `[${payload.stage.toUpperCase()}] ${payload.message} (${percentage}%)`;
-    
+
     let progressContainer = document.querySelector("#progress-container");
     let progressBar = document.querySelector("#progress-fill");
     if (progressContainer && progressBar) {
@@ -1276,24 +1339,75 @@ window.addEventListener("DOMContentLoaded", async () => {
     }
   });
 
-  await listen("game-log", (event) => {
+  await listen("game-log", async (event) => {
     let payload = event.payload;
-    if (typeof payload === 'string' && payload === "[SYSTEM] Game exited.") {
+    if (typeof payload === 'string' && payload.startsWith("[SYSTEM] Game exited")) {
       let launchBtn = document.querySelector("#launch-btn");
       let statusMsg = document.querySelector("#status-msg");
       let progressContainer = document.querySelector("#progress-container");
-      
+
       if (launchBtn) {
         launchBtn.disabled = false;
-        launchBtn.textContent = "LAUNCH GAME";
+        launchBtn.textContent = "Mainkan";
       }
       if (statusMsg) statusMsg.textContent = "Ready to play.";
       if (progressContainer) progressContainer.style.display = "none";
+
+      let codeMatch = payload.match(/code: (-?\d+)/);
+      if (codeMatch && codeMatch[1] !== "0") {
+        // CRASH DETECTED!
+        try {
+          let crashLog = await invoke("get_latest_crash_log", { instanceId: currentActiveInstance.id });
+          analyzeCrashLog(crashLog);
+        } catch (err) {
+          console.error("Failed to get crash log:", err);
+        }
+      }
     }
-    
+
     // Hidden from UI, but still logged to console for debugging
     console.log(payload);
   });
+
+  function analyzeCrashLog(log) {
+    let modal = document.getElementById("crash-analyzer-modal");
+    let diagText = document.getElementById("crash-diagnosis-text");
+    let solText = document.getElementById("crash-solution-text");
+    let rawLog = document.getElementById("crash-raw-log");
+
+    if (!modal) return;
+
+    rawLog.textContent = log.length > 5000 ? log.substring(log.length - 5000) : log;
+
+    // Analysis Logic
+    let logLower = log.toLowerCase();
+
+    if (logLower.includes("outofmemoryerror")) {
+      diagText.textContent = "Game kehabisan memory (RAM) saat berjalan.";
+      solText.textContent = "Buka menu Settings, lalu tambahkan alokasi RAM (Maximum RAM). Direkomendasikan minimal 4096 MB (4 GB).";
+    }
+    else if (logLower.includes("unsupportedclassversionerror")) {
+      diagText.textContent = "Versi Java yang Anda gunakan tidak didukung oleh versi Minecraft ini.";
+      solText.textContent = "Buka menu Settings, pastikan Anda menggunakan Java 17 untuk versi 1.17 - 1.20.4, Java 21 untuk 1.20.5 - 1.21.1, atau Java 25 untuk 1.21.2 ke atas.";
+    }
+    else if (logLower.includes("multipleversionexception") || (logLower.includes("sodium") && logLower.includes("iris") && logLower.includes("incompatible"))) {
+      diagText.textContent = "Terdapat konflik mod yang parah (biasanya Iris dan Sodium, atau ada versi mod ganda).";
+      solText.textContent = "Gunakan Modrinth Downloader untuk menghapus atau mengatur ulang (Re-install) versi Sodium/Iris Anda. Jangan pasang dua versi mod yang sama secara bersamaan.";
+    }
+    else if (logLower.includes("mixinapplyerror") || logLower.includes("mixintransformer") || logLower.includes("modresolutionexception")) {
+      diagText.textContent = "Terjadi kegagalan saat memuat mod. Beberapa mod tidak kompatibel dengan loader atau game versi ini.";
+      solText.textContent = "Coba perbarui semua mod Anda (Re-install versi terbaru) atau hapus mod yang baru saja Anda pasang sebelum game crash.";
+    }
+    else {
+      diagText.textContent = "Penyebab spesifik tidak dapat dideteksi secara otomatis, namun terjadi kegagalan fatal saat memuat game.";
+      solText.textContent = "Cek log mentah (Raw Log) di bawah, atau coba hapus mod terbaru yang Anda pasang.";
+    }
+
+    modal.style.display = "flex";
+
+    document.getElementById("close-crash-modal-btn").onclick = () => modal.style.display = "none";
+    document.getElementById("crash-understood-btn").onclick = () => modal.style.display = "none";
+  }
 
   // Server Console Logic
   serverConsole = document.querySelector("#server-console");
@@ -1301,15 +1415,15 @@ window.addEventListener("DOMContentLoaded", async () => {
     let currentProgressLine = null;
     listen("server-log", (event) => {
       let payload = event.payload;
-      
+
       if (payload.startsWith("[Progress]")) {
         if (currentProgressLine) {
-           currentProgressLine.textContent = payload;
+          currentProgressLine.textContent = payload;
         } else {
-           currentProgressLine = document.createElement("div");
-           currentProgressLine.style.color = "var(--accent)";
-           currentProgressLine.textContent = payload;
-           serverConsole.appendChild(currentProgressLine);
+          currentProgressLine = document.createElement("div");
+          currentProgressLine.style.color = "var(--accent)";
+          currentProgressLine.textContent = payload;
+          serverConsole.appendChild(currentProgressLine);
         }
       } else {
         currentProgressLine = null;
@@ -1350,11 +1464,11 @@ window.addEventListener("DOMContentLoaded", async () => {
       if (!query || !version) return;
 
       pluginResults.innerHTML = `<div style="text-align: center; color: var(--text-muted); margin-top: 32px;">Mencari...</div>`;
-      
+
       try {
         let res = await fetch(`https://api.modrinth.com/v2/search?query=${encodeURIComponent(query)}&facets=[["project_type:plugin"],["versions:${version}"]]&limit=15`);
         let data = await res.json();
-        
+
         let installedPlugins = await invoke("get_server_plugins", { version: version });
 
         if (data.hits.length === 0) {
@@ -1363,7 +1477,7 @@ window.addEventListener("DOMContentLoaded", async () => {
         }
 
         pluginResults.innerHTML = "";
-        
+
         // Use grid-2 for plugin manager as well
         let grid = document.createElement("div");
         grid.className = "grid-2";
@@ -1372,13 +1486,13 @@ window.addEventListener("DOMContentLoaded", async () => {
         for (let hit of data.hits) {
           let card = document.createElement("div");
           card.className = "news-card panel";
-          
-          let downloads = hit.downloads >= 1000000 ? (hit.downloads / 1000000).toFixed(1) + "M" : 
-                          hit.downloads >= 1000 ? (hit.downloads / 1000).toFixed(1) + "K" : hit.downloads;
+
+          let downloads = hit.downloads >= 1000000 ? (hit.downloads / 1000000).toFixed(1) + "M" :
+            hit.downloads >= 1000 ? (hit.downloads / 1000).toFixed(1) + "K" : hit.downloads;
 
           // Basic checking if installed (Modrinth slug or title as filename)
-          let isInstalled = installedPlugins.some(p => p.toLowerCase().includes(hit.slug.toLowerCase()) || p.toLowerCase().includes(hit.title.toLowerCase().replace(/ /g,"_")));
-          
+          let isInstalled = installedPlugins.some(p => p.toLowerCase().includes(hit.slug.toLowerCase()) || p.toLowerCase().includes(hit.title.toLowerCase().replace(/ /g, "_")));
+
           card.innerHTML = `
             <div style="display: flex; gap: 12px; align-items: start; margin-bottom: 12px;">
               <img src="${hit.icon_url || 'https://mc-heads.net/avatar/Steve/64'}" width="48" height="48" style="border-radius: 8px;" />
@@ -1394,7 +1508,7 @@ window.addEventListener("DOMContentLoaded", async () => {
             </div>
             <button class="btn ${isInstalled ? '' : 'btn-primary'} plugin-install-btn" style="width: 100%; ${isInstalled ? 'background: var(--success); color: white; border: none;' : ''}" ${isInstalled ? 'disabled' : ''}>${isInstalled ? '✓ Terpasang' : 'Install'}</button>
           `;
-          
+
           let btn = card.querySelector(".plugin-install-btn");
           if (!isInstalled) {
             btn.onclick = async () => {
@@ -1427,7 +1541,7 @@ window.addEventListener("DOMContentLoaded", async () => {
               }
             };
           }
-          
+
           grid.appendChild(card);
         }
       } catch (e) {
@@ -1439,7 +1553,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   // Console Input Logic
   let serverConsoleInput = document.querySelector("#server-console-input");
   let sendConsoleBtn = document.querySelector("#send-console-btn");
-  
+
   const sendConsoleCmd = async () => {
     let cmd = serverConsoleInput.value.trim();
     if (!cmd) return;
@@ -1475,24 +1589,24 @@ window.addEventListener("DOMContentLoaded", async () => {
       }
       propsModal.style.display = "flex";
       propsList.innerHTML = `<div style="text-align: center; color: var(--text-muted); margin-top: 32px;">Memuat konfigurasi...</div>`;
-      
+
       try {
         currentProps = await invoke("get_server_properties", { version });
         if (currentProps.length === 0) {
           propsList.innerHTML = `<div style="text-align: center; color: var(--text-muted); margin-top: 32px;">File server.properties belum ada. Harap nyalakan server sekali.</div>`;
           return;
         }
-        
+
         propsList.innerHTML = "";
-        
+
         let grid = document.createElement("div");
         grid.className = "grid-2";
         grid.style.gap = "12px";
-        
+
         currentProps.forEach(([key, val], index) => {
           let card = document.createElement("div");
           card.style.cssText = "display: flex; flex-direction: column; gap: 8px; padding: 12px; background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; transition: all 0.2s;";
-          
+
           // hover effect simulation by adding a class or just inline
           card.onmouseenter = () => card.style.background = "rgba(255, 255, 255, 0.06)";
           card.onmouseleave = () => card.style.background = "rgba(255, 255, 255, 0.03)";
@@ -1505,7 +1619,7 @@ window.addEventListener("DOMContentLoaded", async () => {
           label.style.textTransform = "uppercase";
           label.style.letterSpacing = "0.5px";
           label.style.cursor = "default";
-          
+
           let input = document.createElement("input");
           input.type = "text";
           input.className = "input-box";
@@ -1518,22 +1632,22 @@ window.addEventListener("DOMContentLoaded", async () => {
           input.style.width = "100%";
           input.dataset.key = key;
           input.dataset.index = index;
-          
+
           // Input focus effects
           input.onfocus = () => {
-             input.style.borderColor = "var(--primary)";
-             input.style.background = "rgba(0, 0, 0, 0.5)";
+            input.style.borderColor = "var(--primary)";
+            input.style.background = "rgba(0, 0, 0, 0.5)";
           };
           input.onblur = () => {
-             input.style.borderColor = "rgba(255, 255, 255, 0.1)";
-             input.style.background = "rgba(0, 0, 0, 0.3)";
+            input.style.borderColor = "rgba(255, 255, 255, 0.1)";
+            input.style.background = "rgba(0, 0, 0, 0.3)";
           };
-          
+
           card.appendChild(label);
           card.appendChild(input);
           grid.appendChild(card);
         });
-        
+
         propsList.appendChild(grid);
       } catch (e) {
         propsList.innerHTML = `<div style="text-align: center; color: var(--danger); margin-top: 32px;">Gagal memuat properti: ${e}</div>`;
@@ -1547,13 +1661,13 @@ window.addEventListener("DOMContentLoaded", async () => {
     savePropsBtn.addEventListener("click", async () => {
       let version = serverVersionSelect.value;
       if (!version) return;
-      
+
       let inputs = propsList.querySelectorAll("input");
       let updatedProps = [];
       inputs.forEach(input => {
         updatedProps.push([input.dataset.key, input.value]);
       });
-      
+
       let oldText = savePropsBtn.textContent;
       savePropsBtn.textContent = "Menyimpan...";
       savePropsBtn.disabled = true;
@@ -1565,7 +1679,7 @@ window.addEventListener("DOMContentLoaded", async () => {
         alert("Gagal menyimpan: " + e);
         savePropsBtn.textContent = "Error";
       }
-      
+
       setTimeout(() => {
         savePropsBtn.textContent = oldText;
         savePropsBtn.disabled = false;
@@ -1578,23 +1692,25 @@ window.addEventListener("DOMContentLoaded", async () => {
     e.preventDefault();
     launchGame();
   });
-// --- SETTINGS LOGIC ---
+  // --- SETTINGS LOGIC ---
   let globalSettings = null;
 
   async function loadSettings() {
     try {
       globalSettings = await invoke("get_settings");
-      
+
       document.querySelector("#settings-theme").value = globalSettings.theme || "light";
-      document.querySelector("#settings-ram-min").value = globalSettings.ram_min || 1024;
+      if (document.querySelector("#settings-elyby")) {
+        document.querySelector("#settings-elyby").checked = globalSettings.use_elyby !== false; // Default true if null
+      }
       document.querySelector("#settings-ram-max").value = globalSettings.ram_max || 4096;
       document.querySelector("#settings-res-width").value = globalSettings.res_width || 854;
       document.querySelector("#settings-res-height").value = globalSettings.res_height || 480;
-      
+
       document.querySelector("#settings-game-dir").value = globalSettings.custom_game_dir || "";
       document.querySelector("#settings-server-dir").value = globalSettings.custom_server_dir || "";
       document.querySelector("#settings-java-path").value = globalSettings.custom_java_path || "";
-      
+
       applyTheme(globalSettings.theme || "light");
     } catch (e) {
       console.error("Failed to load settings:", e);
@@ -1613,18 +1729,23 @@ window.addEventListener("DOMContentLoaded", async () => {
   if (saveSettingsBtn) {
     saveSettingsBtn.addEventListener("click", async () => {
       if (!globalSettings) return;
-      
+
       let latestSettings = await invoke("get_settings");
-      
+
       latestSettings.theme = document.querySelector("#settings-theme").value;
-      latestSettings.ram_min = parseInt(document.querySelector("#settings-ram-min").value) || 1024;
-      latestSettings.ram_max = parseInt(document.querySelector("#settings-ram-max").value) || 4096;
+      if (document.querySelector("#settings-elyby")) {
+        latestSettings.use_elyby = document.querySelector("#settings-elyby").checked;
+      }
+
+      let ramValue = parseInt(document.querySelector("#settings-ram-max").value) || 4096;
+      latestSettings.ram_min = ramValue;
+      latestSettings.ram_max = ramValue;
       latestSettings.res_width = parseInt(document.querySelector("#settings-res-width").value) || 854;
       latestSettings.res_height = parseInt(document.querySelector("#settings-res-height").value) || 480;
-      
+
       latestSettings.custom_game_dir = document.querySelector("#settings-game-dir").value.trim() || null;
       latestSettings.custom_server_dir = document.querySelector("#settings-server-dir").value.trim() || null;
-      
+
       try {
         await invoke("save_settings", { settings: latestSettings });
         globalSettings = latestSettings;
@@ -1669,20 +1790,20 @@ window.addEventListener("DOMContentLoaded", async () => {
   invoke("get_settings").then(s => {
     if (s && s.theme) applyTheme(s.theme);
   });
-  
+
   // Make loadSettings global if needed by nav logic
   window.loadSettings = loadSettings;
-  
+
   // --- SCREENSHOT MANAGER ---
   async function initScreenshotsView() {
     let select = document.getElementById("screenshot-instance-select");
     if (!select) return;
-    
+
     // Populate dropdown
     try {
       let instances = await invoke("get_instances");
       let activeId = select.value || currentActiveInstance?.id || (instances.length > 0 ? instances[0].id : "");
-      
+
       select.innerHTML = '<option value="">-- Pilih Instance --</option>';
       instances.forEach(inst => {
         let opt = document.createElement("option");
@@ -1691,9 +1812,9 @@ window.addEventListener("DOMContentLoaded", async () => {
         if (inst.id === activeId) opt.selected = true;
         select.appendChild(opt);
       });
-      
+
       select.onchange = () => loadScreenshots(select.value);
-      
+
       let btnFolder = document.getElementById("btn-open-screenshot-folder");
       btnFolder.onclick = () => {
         let id = select.value;
@@ -1701,7 +1822,7 @@ window.addEventListener("DOMContentLoaded", async () => {
           invoke("open_screenshot_folder", { instanceId: id }).catch(e => alert("Gagal membuka folder: " + e));
         }
       };
-      
+
       if (activeId) {
         select.value = activeId;
         loadScreenshots(activeId);
@@ -1715,74 +1836,74 @@ window.addEventListener("DOMContentLoaded", async () => {
     let grid = document.getElementById("screenshots-grid");
     let empty = document.getElementById("screenshots-empty");
     if (!grid || !empty) return;
-    
+
     if (!instanceId) {
       grid.innerHTML = "";
       empty.style.display = "block";
       return;
     }
-    
+
     try {
       let screenshots = await invoke("get_screenshots", { instanceId });
-      
+
       if (screenshots.length === 0) {
         grid.innerHTML = "";
         empty.style.display = "block";
         return;
       }
-      
+
       empty.style.display = "none";
       grid.innerHTML = "";
-      
+
       for (let sc of screenshots) {
         let card = document.createElement("div");
         card.className = "panel";
         card.style.cssText = "padding: 12px; display: flex; flex-direction: column; gap: 8px;";
-        
+
         let imgContainer = document.createElement("div");
         imgContainer.style.cssText = "width: 100%; aspect-ratio: 16/9; background: #000; border-radius: 8px; overflow: hidden; display: flex; align-items: center; justify-content: center; position: relative;";
-        
+
         let img = document.createElement("img");
         img.style.cssText = "width: 100%; height: 100%; object-fit: contain; opacity: 0.5; transition: opacity 0.3s;";
-        
+
         let spinner = document.createElement("div");
         spinner.textContent = "⏳ Memuat...";
         spinner.style.cssText = "position: absolute; color: white; font-size: 12px;";
-        
+
         imgContainer.appendChild(spinner);
         imgContainer.appendChild(img);
-        
+
         let info = document.createElement("div");
         info.style.cssText = "display: flex; justify-content: space-between; align-items: center;";
-        
+
         let name = document.createElement("div");
         name.style.cssText = "font-size: 12px; font-weight: 600; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; max-width: 180px;";
         name.textContent = sc.filename;
-        
+
         let delBtn = document.createElement("button");
         delBtn.className = "btn";
         delBtn.style.cssText = "background: #ffebee; color: var(--danger); border: none; padding: 4px 8px; font-size: 11px;";
         delBtn.innerHTML = "🗑️";
         delBtn.title = "Hapus Screenshot";
-        
+
         delBtn.onclick = async () => {
-          if(confirm(`Yakin ingin menghapus ${sc.filename}?`)) {
+          if (confirm(`Yakin ingin menghapus ${sc.filename}?`)) {
             try {
               await invoke("delete_screenshot", { instanceId, filename: sc.filename });
               loadScreenshots(instanceId); // reload
-            } catch(e) {
+            } catch (e) {
               alert("Gagal menghapus: " + e);
             }
           }
         };
-        
+
         info.appendChild(name);
         info.appendChild(delBtn);
-        
+
         card.appendChild(imgContainer);
         card.appendChild(info);
         grid.appendChild(card);
-        
+
         // Lazy load Base64
         invoke("get_screenshot_base64", { instanceId, filename: sc.filename })
           .then(b64 => {
@@ -1792,9 +1913,9 @@ window.addEventListener("DOMContentLoaded", async () => {
               img.style.opacity = "1";
             };
             img.onclick = () => {
-               // Open full size in new window/tab or simple modal
-               let w = window.open("");
-               w.document.write(`<body style="margin:0;background:#111;display:flex;align-items:center;justify-content:center;height:100vh;"><img src="${b64}" style="max-width:100%;max-height:100%;object-fit:contain;"></body>`);
+              // Open full size in new window/tab or simple modal
+              let w = window.open("");
+              w.document.write(`<body style="margin:0;background:#111;display:flex;align-items:center;justify-content:center;height:100vh;"><img src="${b64}" style="max-width:100%;max-height:100%;object-fit:contain;"></body>`);
             };
             img.style.cursor = "pointer";
           })
@@ -1815,23 +1936,36 @@ window.addEventListener("DOMContentLoaded", async () => {
       const res = await fetch("https://api.github.com/repos/Nashdev0/ND-Launcher/releases/latest");
       if (!res.ok) return;
       const data = await res.json();
-      
+
       let latestVersion = data.tag_name;
       if (latestVersion.startsWith("v")) latestVersion = latestVersion.substring(1);
-      
-      if (latestVersion !== currentVersion) {
+
+      // Helper to compare semver (e.g., 0.0.4 > 0.0.3)
+      const isNewer = (latest, current) => {
+        let l = latest.split('.').map(Number);
+        let c = current.split('.').map(Number);
+        for (let i = 0; i < Math.max(l.length, c.length); i++) {
+          let valL = l[i] || 0;
+          let valC = c[i] || 0;
+          if (valL > valC) return true;
+          if (valL < valC) return false;
+        }
+        return false;
+      };
+
+      if (isNewer(latestVersion, currentVersion)) {
         document.getElementById("update-current-version").textContent = currentVersion;
         document.getElementById("update-new-version").textContent = latestVersion;
-        
+
         let bodyHtml = (data.body || "Tidak ada changelog yang disediakan.").replace(/\r\n/g, "<br>").replace(/\n/g, "<br>");
         document.getElementById("update-changelog").innerHTML = bodyHtml;
-        
+
         document.getElementById("update-notification").style.display = "block";
-        
+
         if (data.html_url) {
           document.getElementById("btn-download-update").href = data.html_url;
         }
-        
+
         document.getElementById("close-update-btn").onclick = () => {
           document.getElementById("update-notification").style.display = "none";
         };
@@ -1840,7 +1974,7 @@ window.addEventListener("DOMContentLoaded", async () => {
       console.error("Update check failed:", e);
     }
   }
-  
+
   // Call it a few seconds after startup
   setTimeout(checkForUpdates, 3000);
 });

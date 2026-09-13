@@ -94,12 +94,12 @@
       <!-- NEWS VIEW -->
       <div id="view-news">
         <div class="banner panel">
-          <h2 id="news-banner-title">ND LAUNCHER DEMO v0.0.3</h2>
+          <h2 id="news-banner-title">ND LAUNCHER DEMO v0.0.4</h2>
           <p id="news-banner-desc">Hanya orang tertentu yang bisa akses demo version.</p>
           <button class="btn btn-primary" id="news-banner-btn">Mainkan Sekarang</button>
         </div>
 
-        <h3 style="font-weight: 600; font-size: 16px;">TERBARU & CHANGELOG:</h3>
+        <h3 style="font-weight: 600; font-size: 16px; margin-top: 24px; margin-bottom: 16px;">TERBARU & CHANGELOG:</h3>
         <div class="grid-2">
           <div class="news-card panel" style="border: 1px solid #f87171;">
             <span class="tag" style="background: #ef4444; color: white;">⚠️ PERINGATAN PENTING</span>
@@ -110,9 +110,21 @@
             </p>
           </div>
           <div class="news-card panel" style="border: 1px solid var(--accent);">
+            <span class="tag" style="background: var(--accent); color: white;">UPDATE v0.0.4</span>
+            <h4>🧑‍🚀 Ely.by Skin System</h4>
+            <p>Sekarang pengguna offline bisa tampil gaya! Gunakan akun Ely.by untuk menampilkan skin dan cape kustom Anda secara langsung di dalam game maupun multiplayer.</p>
+          </div>
+          <div class="news-card panel" style="border: 1px solid var(--success);">
+            <span class="tag" style="background: var(--success); color: white;">OPTIMASI v0.0.4</span>
+            <h4>⚡ Super Fast Startup</h4>
+            <p>Waktu *loading* aplikasi saat baru dibuka telah dipangkas drastis (diskon hingga 80%) berkat *lazy loading*, asinkronisasi font, serta caching Mojang dan Java!</p>
+          </div>
+          <div class="news-card panel" style="border: 1px solid var(--accent);">
             <span class="tag" style="background: var(--accent); color: white;">UPDATE v0.0.3</span>
             <h4 id="news-v3-1-title">Modrinth Downloader Pro</h4>
-            <p id="news-v3-1-desc">Sekarang Anda bisa memilih <strong>versi spesifik</strong> dari sebuah mod (Dropdown Versi). Selain itu, Anda bebas mengganti versi (Re-install) tanpa takut mod bertumpuk, karena mod lama akan otomatis terhapus!</p>
+            <p id="news-v3-1-desc">Sekarang Anda bisa memilih <strong>versi spesifik</strong> dari sebuah mod (Dropdown
+              Versi). Selain itu, Anda bebas mengganti versi (Re-install) tanpa takut mod bertumpuk, karena mod lama
+              akan otomatis terhapus!</p>
           </div>
           <div class="news-card panel">
             <span class="tag" style="background: var(--success); color: white;">BUG FIX v0.0.3</span>
@@ -165,6 +177,11 @@
             </div>
             <button class="btn btn-primary" id="confirm-create-instance-btn">Buat</button>
             <button class="btn" id="cancel-create-instance-btn">Batal</button>
+          </div>
+          <div style="margin-top: 12px; display: flex; align-items: center; gap: 6px;">
+            <input type="checkbox" id="auto-optimize-mods" style="accent-color: var(--accent);" checked />
+            <label for="auto-optimize-mods" style="font-size: 13px; cursor: pointer; color: var(--text-color);">🚀
+              Aktifkan Mode Kentang (Auto Install Mod FPS Boost - Khusus Fabric)</label>
           </div>
         </div>
 
@@ -233,146 +250,171 @@
           <hr style="border: 0; border-top: 1px solid rgba(100,100,100,0.2);" />
 
           <div>
-            <h3 style="font-size: 16px; margin-bottom: 8px;">🎮 Client RAM Allocation (MB)</h3>
-            <div style="display: flex; gap: 16px;">
-              <div style="flex: 1;">
-                <label style="font-size: 12px; color: var(--text-muted);">Minimum RAM (-Xms)</label>
-                <input type="number" id="settings-ram-min" class="input-box" style="width: 100%;" min="512" max="16384"
-                  step="512" />
-              </div>
-              <div style="flex: 1;">
-                <label style="font-size: 12px; color: var(--text-muted);">Maximum RAM (-Xmx)</label>
-                <input type="number" id="settings-ram-max" class="input-box" style="width: 100%;" min="1024" max="32768"
-                  step="512" />
-              </div>
+            <h3 style="font-size: 16px; margin-bottom: 8px;">🧑‍🚀 Ely.by Skin System</h3>
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <input type="checkbox" id="settings-elyby"
+                style="width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer;" />
+              <label for="settings-elyby" style="font-size: 14px; font-weight: 500; cursor: pointer;">Gunakan Skin &
+                Cape Ely.by</label>
+            </div>
+
+            <div
+              style="margin-top: 16px; padding: 12px 16px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-hover);">
+              <h4 style="font-size: 13px; font-weight: 600; margin-bottom: 8px;">📖 Cara Pasang Skin Ely.by:</h4>
+              <ol style="font-size: 12px; color: var(--text-muted); padding-left: 20px; line-height: 1.6;">
+                <li>Daftar akun gratis di <a href="#"
+                    onclick="if(window.__TAURI__){ window.__TAURI__.core.invoke('plugin:opener|open', { path: 'https://ely.by' }); } return false;"
+                    style="color: var(--accent); font-weight: 500; text-decoration: underline; cursor: pointer;">ely.by</a>
+                  via browser Anda.</li>
+                <li>Upload Skin (dan Cape) favorit Anda di profil Ely.by tersebut.</li>
+                <li>Buat/Gunakan akun di launcher ini dengan <strong>Username yang sama persis</strong> dengan akun
+                  Ely.by Anda.</li>
+                <li>Centang kotak di atas, lalu luncurkan game. Selesai!</li>
+              </ol>
             </div>
           </div>
 
           <hr style="border: 0; border-top: 1px solid rgba(100,100,100,0.2);" />
 
-          <div>
-            <h3 style="font-size: 16px; margin-bottom: 8px;">🖥️ Minecraft Resolution</h3>
-            <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">Atur resolusi jendela untuk
-              meningkatkan performa (PC Kentang gunakan 854x480).</p>
-            <div style="display: flex; gap: 16px;">
-              <div style="flex: 1;">
-                <label style="font-size: 12px; color: var(--text-muted);">Width</label>
-                <input type="number" id="settings-res-width" class="input-box" style="width: 100%;" />
-              </div>
-              <div style="flex: 1;">
-                <label style="font-size: 12px; color: var(--text-muted);">Height</label>
-                <input type="number" id="settings-res-height" class="input-box" style="width: 100%;" />
-              </div>
-            </div>
-          </div>
-
-          <hr style="border: 0; border-top: 1px solid rgba(100,100,100,0.2);" />
-
-          <div>
-            <h3 style="font-size: 16px; margin-bottom: 8px;">📁 Custom Directories</h3>
-            <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">Biarkan kosong untuk menggunakan
-              folder bawaan aplikasi (game_data).</p>
-
-            <div class="input-group" style="margin-bottom: 12px;">
-              <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 4px;">Game
-                Directory (Minecraft Client)</label>
-              <div style="display: flex; gap: 10px;">
-                <input type="text" id="settings-game-dir" class="input-box" placeholder="C:/ND Launcher/game_data"
-                  readonly style="flex: 1; cursor: pointer;" />
-                <button class="btn btn-outline" id="btn-pick-game-dir" type="button" style="padding: 0 15px;">Pilih
-                  Folder</button>
-              </div>
-            </div>
-
-            <div class="input-group" style="margin-bottom: 12px;">
-              <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 4px;">Server
-                Directory</label>
-              <div style="display: flex; gap: 10px;">
-                <input type="text" id="settings-server-dir" class="input-box"
-                  placeholder="C:/ND Launcher/game_data/server" readonly style="flex: 1; cursor: pointer;" />
-                <button class="btn btn-outline" id="btn-pick-server-dir" type="button" style="padding: 0 15px;">Pilih
-                  Folder</button>
-              </div>
-            </div>
-          </div>
-
-          <div
-            style="margin-top: 30px; margin-bottom: 15px; font-weight: 600; font-size: 1.1rem; border-bottom: 1px solid var(--border); padding-bottom: 10px;">
-            ☕ Java Manager</div>
-          <div style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 15px;">Otomatis unduh dan pasang Java
-            sesuai kebutuhan versi.</div>
-
-          <div class="java-manager-row"
-            style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 10px;">
             <div>
-              <div style="font-weight: 600;">Java 17</div>
-              <div style="font-size: 0.8rem; color: var(--text-muted);">Untuk versi 1.17 - 1.20.4</div>
+              <h3 style="font-size: 16px; margin-bottom: 8px;">🎮 Client RAM Allocation (MB)</h3>
+              <div style="display: flex; gap: 16px;">
+                <div style="flex: 1;">
+                  <label style="font-size: 12px; color: var(--text-muted);">Alokasi RAM (MB)</label>
+                  <input type="number" id="settings-ram-max" class="input-box" style="width: 100%;" min="1024"
+                    max="32768" step="512" />
+                </div>
+              </div>
             </div>
-            <div id="java-17-status">
-              <button class="btn btn-primary btn-install-java" data-version="17" type="button"
-                style="padding: 5px 15px; font-size: 0.85rem;">⬇️ Install</button>
-            </div>
-          </div>
 
-          <div class="java-manager-row"
-            style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 10px;">
+            <hr style="border: 0; border-top: 1px solid rgba(100,100,100,0.2);" />
+
             <div>
-              <div style="font-weight: 600;">Java 21</div>
-              <div style="font-size: 0.8rem; color: var(--text-muted);">Untuk versi 1.20.5 - 1.21.1</div>
+              <h3 style="font-size: 16px; margin-bottom: 8px;">🖥️ Minecraft Resolution</h3>
+              <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">Atur resolusi jendela untuk
+                meningkatkan performa (PC Kentang gunakan 854x480).</p>
+              <div style="display: flex; gap: 16px;">
+                <div style="flex: 1;">
+                  <label style="font-size: 12px; color: var(--text-muted);">Width</label>
+                  <input type="number" id="settings-res-width" class="input-box" style="width: 100%;" />
+                </div>
+                <div style="flex: 1;">
+                  <label style="font-size: 12px; color: var(--text-muted);">Height</label>
+                  <input type="number" id="settings-res-height" class="input-box" style="width: 100%;" />
+                </div>
+              </div>
             </div>
-            <div id="java-21-status">
-              <button class="btn btn-primary btn-install-java" data-version="21" type="button"
-                style="padding: 5px 15px; font-size: 0.85rem;">⬇️ Install</button>
-            </div>
-          </div>
 
-          <div class="java-manager-row"
-            style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 10px;">
+            <hr style="border: 0; border-top: 1px solid rgba(100,100,100,0.2);" />
+
             <div>
-              <div style="font-weight: 600;">Java 25</div>
-              <div style="font-size: 0.8rem; color: var(--text-muted);">Untuk versi 1.21.2 (26.2) ke atas</div>
-              <div style="font-size: 0.75rem; color: #ff5252; margin-top: 4px; font-weight: 500;">⚠️ Jika mau main 26.2,
-                wajib ada java 25!</div>
+              <h3 style="font-size: 16px; margin-bottom: 8px;">📁 Custom Directories</h3>
+              <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">Biarkan kosong untuk
+                menggunakan
+                folder bawaan aplikasi (game_data).</p>
+
+              <div class="input-group" style="margin-bottom: 12px;">
+                <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 4px;">Game
+                  Directory (Minecraft Client)</label>
+                <div style="display: flex; gap: 10px;">
+                  <input type="text" id="settings-game-dir" class="input-box" placeholder="C:/ND Launcher/game_data"
+                    readonly style="flex: 1; cursor: pointer;" />
+                  <button class="btn btn-outline" id="btn-pick-game-dir" type="button" style="padding: 0 15px;">Pilih
+                    Folder</button>
+                </div>
+              </div>
+
+              <div class="input-group" style="margin-bottom: 12px;">
+                <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 4px;">Server
+                  Directory</label>
+                <div style="display: flex; gap: 10px;">
+                  <input type="text" id="settings-server-dir" class="input-box"
+                    placeholder="C:/ND Launcher/game_data/server" readonly style="flex: 1; cursor: pointer;" />
+                  <button class="btn btn-outline" id="btn-pick-server-dir" type="button" style="padding: 0 15px;">Pilih
+                    Folder</button>
+                </div>
+              </div>
             </div>
-            <div id="java-25-status">
-              <button class="btn btn-primary btn-install-java" data-version="25" type="button"
-                style="padding: 5px 15px; font-size: 0.85rem;">⬇️ Install</button>
+
+            <div
+              style="margin-top: 30px; margin-bottom: 15px; font-weight: 600; font-size: 1.1rem; border-bottom: 1px solid var(--border); padding-bottom: 10px;">
+              ☕ Java Manager</div>
+            <div style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 15px;">Otomatis unduh dan pasang
+              Java
+              sesuai kebutuhan versi.</div>
+
+            <div class="java-manager-row"
+              style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 10px;">
+              <div>
+                <div style="font-weight: 600;">Java 17</div>
+                <div style="font-size: 0.8rem; color: var(--text-muted);">Untuk versi 1.17 - 1.20.4</div>
+              </div>
+              <div id="java-17-status">
+                <button class="btn btn-primary btn-install-java" data-version="17" type="button"
+                  style="padding: 5px 15px; font-size: 0.85rem;">⬇️ Install</button>
+              </div>
+            </div>
+
+            <div class="java-manager-row"
+              style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 10px;">
+              <div>
+                <div style="font-weight: 600;">Java 21</div>
+                <div style="font-size: 0.8rem; color: var(--text-muted);">Untuk versi 1.20.5 - 1.21.1</div>
+              </div>
+              <div id="java-21-status">
+                <button class="btn btn-primary btn-install-java" data-version="21" type="button"
+                  style="padding: 5px 15px; font-size: 0.85rem;">⬇️ Install</button>
+              </div>
+            </div>
+
+            <div class="java-manager-row"
+              style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 10px;">
+              <div>
+                <div style="font-weight: 600;">Java 25</div>
+                <div style="font-size: 0.8rem; color: var(--text-muted);">Untuk versi 1.21.2 (26.2) ke atas</div>
+                <div style="font-size: 0.75rem; color: #ff5252; margin-top: 4px; font-weight: 500;">⚠️ Jika mau main
+                  26.2,
+                  wajib ada java 25!</div>
+              </div>
+              <div id="java-25-status">
+                <button class="btn btn-primary btn-install-java" data-version="25" type="button"
+                  style="padding: 5px 15px; font-size: 0.85rem;">⬇️ Install</button>
+              </div>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; margin-top: 16px;">
+              <button class="btn btn-primary" id="save-settings-btn" style="padding: 12px 24px;">💾 Simpan
+                Pengaturan</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- SCREENSHOTS VIEW -->
+        <div id="view-screenshots" style="display: none; padding: 24px; max-width: 1000px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+            <h2 style="font-size: 24px; font-weight: 700; color: var(--accent);">📸 Screenshot Gallery</h2>
+            <div style="display: flex; gap: 12px; align-items: center;">
+              <label style="font-size: 13px; font-weight: 600;">Instance:</label>
+              <select id="screenshot-instance-select" class="input-box" style="width: 200px;">
+                <option value="">Pilih Instance...</option>
+              </select>
+              <button class="btn btn-outline" id="btn-open-screenshot-folder"
+                title="Buka Folder di File Explorer">📂</button>
             </div>
           </div>
 
-          <div style="display: flex; justify-content: flex-end; margin-top: 16px;">
-            <button class="btn btn-primary" id="save-settings-btn" style="padding: 12px 24px;">💾 Simpan
-              Pengaturan</button>
+          <div id="screenshots-empty"
+            style="text-align: center; padding: 60px 20px; color: var(--text-muted); background: var(--bg-card); border-radius: 12px; border: 1px dashed var(--border);">
+            <div style="font-size: 40px; margin-bottom: 10px;">📸</div>
+            <p>Belum ada screenshot di instance ini.</p>
+            <p style="font-size: 12px; margin-top: 5px;">Tekan F2 saat bermain Minecraft untuk mengambil screenshot.</p>
+          </div>
+
+          <div id="screenshots-grid"
+            style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px;">
+            <!-- JS will populate -->
           </div>
         </div>
-      </div>
-
-      <!-- SCREENSHOTS VIEW -->
-      <div id="view-screenshots" style="display: none; padding: 24px; max-width: 1000px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
-          <h2 style="font-size: 24px; font-weight: 700; color: var(--accent);">📸 Screenshot Gallery</h2>
-          <div style="display: flex; gap: 12px; align-items: center;">
-            <label style="font-size: 13px; font-weight: 600;">Instance:</label>
-            <select id="screenshot-instance-select" class="input-box" style="width: 200px;">
-              <option value="">Pilih Instance...</option>
-            </select>
-            <button class="btn btn-outline" id="btn-open-screenshot-folder"
-              title="Buka Folder di File Explorer">📂</button>
-          </div>
-        </div>
-
-        <div id="screenshots-empty"
-          style="text-align: center; padding: 60px 20px; color: var(--text-muted); background: var(--bg-card); border-radius: 12px; border: 1px dashed var(--border);">
-          <div style="font-size: 40px; margin-bottom: 10px;">📸</div>
-          <p>Belum ada screenshot di instance ini.</p>
-          <p style="font-size: 12px; margin-top: 5px;">Tekan F2 saat bermain Minecraft untuk mengambil screenshot.</p>
-        </div>
-
-        <div id="screenshots-grid"
-          style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px;">
-          <!-- JS will populate -->
-        </div>
-      </div>
 
     </main>
 
@@ -479,14 +521,6 @@
         </div>
       </div>
 
-      <div class="chip">
-        <label>RAM Client</label>
-        <div class="custom-select-wrapper" id="custom-ram-wrapper">
-          <input type="hidden" id="ram-select" value="4" />
-          <div class="custom-select-display" id="custom-ram-display" style="width: 120px;">4 GB</div>
-          <div class="custom-select-options" id="custom-ram-options" style="width: 120px;"></div>
-        </div>
-      </div>
 
       <div class="chip" style="display: none;">
         <label>Java Settings</label>
@@ -582,7 +616,51 @@
     </div>
   </div>
 
+  <!-- Crash Analyzer Modal -->
+  <div id="crash-analyzer-modal" class="modal"
+    style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(5px); z-index: 2000; align-items: center; justify-content: center;">
+    <div
+      style="background: #1e1e2e; color: #cdd6f4; width: 85%; max-width: 600px; border-radius: 12px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 10px 40px rgba(239, 68, 68, 0.2); border: 1px solid rgba(239, 68, 68, 0.5);">
+      <div
+        style="padding: 16px; border-bottom: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: space-between; align-items: center; background: rgba(239, 68, 68, 0.1);">
+        <h3 style="margin: 0; display: flex; align-items: center; gap: 8px; color: #ef4444;">
+          <span style="font-size: 20px;">⚠️</span> GAME CRASHED
+        </h3>
+        <button id="close-crash-modal-btn"
+          style="background: none; border: none; color: #a6adc8; cursor: pointer; font-size: 18px; transition: color 0.2s;">✕</button>
+      </div>
 
+      <div style="padding: 24px; display: flex; flex-direction: column; gap: 16px;">
+        <div>
+          <h4 style="color: #f38ba8; margin-bottom: 8px; font-size: 16px;">🔍 Diagnosis</h4>
+          <div id="crash-diagnosis-text"
+            style="background: rgba(0,0,0,0.2); padding: 12px; border-radius: 8px; border-left: 4px solid #f38ba8; font-size: 14px; line-height: 1.5;">
+            Sedang menganalisa penyebab crash...
+          </div>
+        </div>
+
+        <div>
+          <h4 style="color: #a6e3a1; margin-bottom: 8px; font-size: 16px;">💡 Solusi</h4>
+          <div id="crash-solution-text"
+            style="background: rgba(0,0,0,0.2); padding: 12px; border-radius: 8px; border-left: 4px solid #a6e3a1; font-size: 14px; line-height: 1.5;">
+            Mohon tunggu sebentar.
+          </div>
+        </div>
+
+        <details style="margin-top: 8px;">
+          <summary style="cursor: pointer; color: #89b4fa; font-size: 13px;">Tampilkan Log Mentah (Raw Log)</summary>
+          <pre id="crash-raw-log"
+            style="background: #11111b; padding: 12px; border-radius: 8px; font-size: 11px; overflow-x: auto; max-height: 150px; margin-top: 8px; color: #a6adc8; border: 1px solid rgba(255,255,255,0.1);"></pre>
+        </details>
+      </div>
+
+      <div
+        style="padding: 16px; border-top: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: flex-end; gap: 8px;">
+        <button class="btn" id="crash-understood-btn"
+          style="background: var(--accent); color: white; border: none; padding: 10px 24px; font-weight: 600;">Mengerti</button>
+      </div>
+    </div>
+  </div>
 </body>
 
 </html>

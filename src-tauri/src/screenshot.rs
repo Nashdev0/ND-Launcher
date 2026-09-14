@@ -11,14 +11,17 @@ pub struct ScreenshotInfo {
     pub modified: u64,
 }
 
-fn get_screenshots_dir(instance_id: &str) -> PathBuf {
-    // Screenshots are stored per-instance under base dir (same as AGENTS.md note #2)
-    crate::settings::get_base_dir().join("instances").join(instance_id).join("screenshots")
+async fn get_screenshots_dir(instance_id: &str) -> PathBuf {
+    crate::settings::get_global_game_dir()
+        .await
+        .join("instances")
+        .join(instance_id)
+        .join("screenshots")
 }
 
 #[command]
 pub async fn get_screenshots(instance_id: String) -> Result<Vec<ScreenshotInfo>, String> {
-    let dir = get_screenshots_dir(&instance_id);
+    let dir = get_screenshots_dir(&instance_id).await;
     let mut screenshots = Vec::new();
 
     if dir.exists() {
@@ -57,7 +60,7 @@ pub async fn get_screenshots(instance_id: String) -> Result<Vec<ScreenshotInfo>,
 
 #[command]
 pub async fn get_screenshot_base64(instance_id: String, filename: String) -> Result<String, String> {
-    let dir = get_screenshots_dir(&instance_id);
+    let dir = get_screenshots_dir(&instance_id).await;
     let path = dir.join(&filename);
     
     if path.exists() {
@@ -71,7 +74,7 @@ pub async fn get_screenshot_base64(instance_id: String, filename: String) -> Res
 
 #[command]
 pub async fn delete_screenshot(instance_id: String, filename: String) -> Result<(), String> {
-    let dir = get_screenshots_dir(&instance_id);
+    let dir = get_screenshots_dir(&instance_id).await;
     let path = dir.join(&filename);
     
     if path.exists() {
@@ -82,7 +85,7 @@ pub async fn delete_screenshot(instance_id: String, filename: String) -> Result<
 
 #[command]
 pub async fn open_screenshot_folder(instance_id: String) -> Result<(), String> {
-    let dir = get_screenshots_dir(&instance_id);
+    let dir = get_screenshots_dir(&instance_id).await;
     if !dir.exists() {
         fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
     }

@@ -11,7 +11,7 @@ let currentActiveAccount = null;
 let elybyAvatarCache = {};
 let elybyAvatarPromises = {};
 let elybyProfileCache = {};
-let elybyProfilePromise = null;
+let elybyProfilePromises = {};
 
 let customVersionWrapper;
 let customVersionDisplay;
@@ -37,6 +37,17 @@ let javaCustomInput;
 let statusMsg;
 let launchBtn;
 let logBox;
+
+function escapeHtml(s) {
+  return String(s ?? "").replace(/[&<>"']/g, c => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+  })[c]);
+}
+
+function truncate(s, n) {
+  let str = String(s ?? "");
+  return str.length > n ? str.slice(0, n) + "..." : str;
+}
 
 async function fetchVersions() {
   try {
@@ -120,13 +131,13 @@ async function fetchInstances() {
         card.className = "news-card panel";
         card.innerHTML = `
           <div style="display: flex; justify-content: space-between; align-items: start;">
-            <span class="tag" style="background: var(--accent); color: white;">${inst.version} ${inst.loader.toUpperCase()}</span>
-            <button class="btn btn-danger" data-id="${inst.id}" data-name="${inst.name}" style="padding: 2px 6px; font-size: 10px; border:none; background: #ffebee; color: var(--danger);">HAPUS</button>
+            <span class="tag" style="background: var(--accent); color: var(--color-ink);">${inst.version} ${inst.loader.toUpperCase()}</span>
+            <button class="btn btn-danger" data-id="${inst.id}" data-name="${inst.name}" style="padding: 2px 6px; font-size: 10px;">HAPUS</button>
           </div>
           <h4 style="margin-top: 8px;">${inst.name}</h4>
           <p>Local Instance</p>
           <div style="display: flex; gap: 8px; margin-top: 12px;">
-            <button class="btn btn-primary play-inst-btn" data-id="${inst.id}" style="flex: 1; ${inst.id === activeId ? 'background: var(--success);' : ''}">${inst.id === activeId ? 'SELECTED' : 'SELECT'}</button>
+            <button class="btn btn-primary play-inst-btn" data-id="${inst.id}" style="flex: 1; ${inst.id === activeId ? 'background: var(--success); color: var(--color-ink);' : ''}">${inst.id === activeId ? 'SELECTED' : 'SELECT'}</button>
             <button class="btn manage-mod-btn" data-id="${inst.id}" data-name="${inst.name}" style="flex: 1;">Kelola Mod</button>
           </div>
         `;
@@ -150,8 +161,12 @@ async function fetchInstances() {
       btn.addEventListener("click", async (e) => {
         let id = e.target.getAttribute("data-id");
         if (confirm("Yakin ingin menghapus instance ini?")) {
-          await invoke("delete_instance", { instanceId: id });
-          await fetchInstances();
+          try {
+            await invoke("delete_instance", { instanceId: id });
+            await fetchInstances();
+          } catch (err) {
+            alert("Gagal menghapus instance: " + err);
+          }
         }
       });
     });
@@ -191,7 +206,7 @@ async function getCachedElybyAvatar(username) {
 
 async function getCachedElybyProfile(username) {
   if (elybyProfileCache[username]) return elybyProfileCache[username];
-  if (elybyProfilePromise) return elybyProfilePromise;
+  if (elybyProfilePromises[username]) return elybyProfilePromises[username];
   const promise = (async () => {
     try {
       const profile = await invoke("get_elyby_profile", { username });
@@ -201,10 +216,10 @@ async function getCachedElybyProfile(username) {
       console.log("Ely.by profile not found for:", username, e);
       return null;
     } finally {
-      elybyProfilePromise = null;
+      delete elybyProfilePromises[username];
     }
   })();
-  elybyProfilePromise = promise;
+  elybyProfilePromises[username] = promise;
   return promise;
 }
 
@@ -337,7 +352,7 @@ async function fetchJavaInstallations() {
         if (installedJava) {
           let isActive = (settings.custom_java_path === installedJava.path);
           if (isActive) {
-            container.innerHTML = `<button class="btn btn-primary" disabled style="background: var(--success); opacity: 1; padding: 5px 15px; font-size: 0.85rem; color: white; cursor: default;">✅ Aktif</button>`;
+            container.innerHTML = `<button class="btn btn-primary" disabled style="background: var(--success); color: var(--color-ink); opacity: 1; padding: 5px 15px; font-size: 0.85rem; cursor: default;">✅ Aktif</button>`;
           } else {
             container.innerHTML = `<button class="btn btn-outline btn-set-java" data-path="${installedJava.path}" type="button" style="padding: 5px 15px; font-size: 0.85rem;">Gunakan</button>`;
           }
@@ -406,15 +421,28 @@ async function launchGame() {
   launchBtn.disabled = true;
 
   try {
-    // Save settings safely
+    // Save settings only if something actually changed (hindari disk I/O tiap launch)
     let currentSettings = await invoke("get_settings");
-    currentSettings.active_account_id = currentActiveAccount.id;
+    let dirty = false;
 
-    let ramValue = parseInt(document.querySelector("#settings-ram-max").value) || 4096;
-    currentSettings.ram_min = ramValue / 4;
-    currentSettings.ram_max = ramValue;
+    if (currentSettings.active_account_id !== currentActiveAccount.id) {
+      currentSettings.active_account_id = currentActiveAccount.id;
+      dirty = true;
+    }
 
-    await invoke("save_settings", { settings: currentSettings });
+    // Only override RAM if the settings field has a valid value; otherwise keep saved value
+    let ramInput = document.querySelector("#settings-ram-max");
+    let ramValue = ramInput ? parseInt(ramInput.value) : NaN;
+    if (!isNaN(ramValue) && ramValue >= 1024 &&
+        (currentSettings.ram_max !== ramValue || currentSettings.ram_min !== ramValue / 4)) {
+      currentSettings.ram_min = ramValue / 4;
+      currentSettings.ram_max = ramValue;
+      dirty = true;
+    }
+
+    if (dirty) {
+      await invoke("save_settings", { settings: currentSettings });
+    }
 
     let result = await invoke("launch_game", {
       username: currentActiveAccount.username,
@@ -502,7 +530,7 @@ async function openModManager(instanceId, instanceName) {
       let toggleBtn = document.createElement("button");
       toggleBtn.className = "btn";
       toggleBtn.style.cssText = mod.enabled
-        ? "background: var(--success); color: white; border: none; font-size: 12px; padding: 6px 12px;"
+        ? "background: var(--success); color: var(--color-ink); border: none; font-size: 12px; padding: 6px 12px;"
         : "background: #f1f3f5; color: var(--text-muted); border: none; font-size: 12px; padding: 6px 12px;";
       toggleBtn.textContent = mod.enabled ? "ON" : "OFF";
 
@@ -521,7 +549,7 @@ async function openModManager(instanceId, instanceName) {
 
       let deleteBtn = document.createElement("button");
       deleteBtn.className = "btn";
-      deleteBtn.style.cssText = "background: #ffebee; color: var(--danger); border: none; font-size: 12px; padding: 6px 12px;";
+      deleteBtn.style.cssText = "background: var(--danger); color: var(--color-ink); border: none; font-size: 12px; padding: 6px 12px;";
       deleteBtn.innerHTML = "Hapus";
 
       deleteBtn.addEventListener("click", async () => {
@@ -603,20 +631,20 @@ async function searchModrinth(query) {
           <img src="${mod.icon_url || 'https://mc-heads.net/avatar/Steve/64'}" width="48" height="48" style="border-radius: 8px;" />
           <div>
             <h4 style="margin-bottom: 4px; font-size: 15px;">${mod.title}</h4>
-            <p style="font-size: 11px; color: var(--accent); margin-bottom: 4px;">by ${mod.author}</p>
-            <p style="font-size: 12px;">${mod.description.substring(0, 50)}...</p>
+            <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 4px;">by ${mod.author}</p>
+            <p style="font-size: 12px;">${truncate(mod.description, 50)}</p>
           </div>
         </div>
         <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted); margin-bottom: 12px; font-weight: 600;">
-          <span style="background: #eef2ff; color: var(--accent); padding: 2px 6px; border-radius: 4px;">🎯 ${targetVersionLabel} ${loader.toUpperCase()}</span>
+          <span class="tag" style="background: var(--pastel-blue); color: var(--pastel-blue-text); margin-bottom: 0;">🎯 ${targetVersionLabel} ${loader.toUpperCase()}</span>
           <span>📥 ${downloads}</span>
         </div>
         <div style="display: flex; gap: 8px; margin-bottom: 12px; align-items: center;">
-          <select id="ver-${mod.slug}" class="input-box" style="flex: 1; font-size: 11px; padding: 4px; background: rgba(0,0,0,0.05); border-color: rgba(0,0,0,0.1);">
+          <select id="ver-${mod.slug}" class="input-box" style="flex: 1; font-size: 11px; padding: 4px;">
             <option value="">Memuat versi...</option>
           </select>
         </div>
-        <button class="btn ${isInstalled ? '' : 'btn-primary'} mod-install-btn" data-slug="${mod.slug}" data-is-installed="${isInstalled}" style="width: 100%; ${isInstalled ? 'background: var(--accent); color: white; border: none;' : ''}">${isInstalled ? 'Ganti Versi / Re-install' : 'Install'}</button>
+        <button class="btn ${isInstalled ? '' : 'btn-primary'} mod-install-btn" data-slug="${mod.slug}" data-is-installed="${isInstalled}" style="width: 100%; ${isInstalled ? 'background: var(--accent); color: var(--color-ink);' : ''}">${isInstalled ? 'Ganti Versi / Re-install' : 'Install'}</button>
       `;
       grid.appendChild(card);
 
@@ -751,7 +779,7 @@ async function searchModrinth(query) {
 
           e.target.textContent = "✓ Terpasang";
           e.target.style.background = "var(--success)";
-          e.target.style.color = "white";
+          e.target.style.color = "var(--color-ink)";
           e.target.style.border = "none";
           e.target.setAttribute("data-is-installed", "true");
 
@@ -811,12 +839,12 @@ async function searchModrinthShaders(query) {
           <img src="${shader.icon_url || 'https://mc-heads.net/avatar/Steve/64'}" width="48" height="48" style="border-radius: 8px;" />
           <div>
             <h4 style="margin-bottom: 4px; font-size: 15px;">${shader.title}</h4>
-            <p style="font-size: 11px; color: var(--accent); margin-bottom: 4px;">by ${shader.author}</p>
-            <p style="font-size: 12px;">${shader.description.substring(0, 50)}...</p>
+            <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 4px;">by ${shader.author}</p>
+            <p style="font-size: 12px;">${truncate(shader.description, 50)}</p>
           </div>
         </div>
         <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted); margin-bottom: 12px; font-weight: 600;">
-          <span style="background: #eef2ff; color: var(--accent); padding: 2px 6px; border-radius: 4px;">✨ Shaderpack</span>
+          <span class="tag" style="background: var(--pastel-blue); color: var(--pastel-blue-text); margin-bottom: 0;">✨ Shaderpack</span>
           <span>📥 ${downloads}</span>
         </div>
         <button class="btn btn-primary shader-install-btn" data-slug="${shader.slug}" style="width: 100%;">Install</button>
@@ -843,7 +871,7 @@ async function searchModrinthShaders(query) {
             });
             e.target.textContent = "Terpasang";
             e.target.style.background = "var(--success)";
-            e.target.style.color = "white";
+            e.target.style.color = "var(--text-inverse)";
             e.target.style.border = "none";
           } else {
             alert("Versi file yang cocok tidak ditemukan.");
@@ -855,7 +883,7 @@ async function searchModrinthShaders(query) {
           if (errStr.toLowerCase().includes("already exists")) {
             e.target.textContent = "✓ Terpasang";
             e.target.style.background = "var(--success)";
-            e.target.style.color = "white";
+            e.target.style.color = "var(--text-inverse)";
             e.target.style.border = "none";
           } else {
             alert("Gagal: " + err);
@@ -872,6 +900,7 @@ async function searchModrinthShaders(query) {
 }
 
 window.addEventListener("DOMContentLoaded", async () => {
+  try {
 
   accountSelect = document.querySelector("#account-select");
   avatarImg = document.querySelector("#avatar-img");
@@ -1001,14 +1030,18 @@ window.addEventListener("DOMContentLoaded", async () => {
     javaCustomInput.value = settings.custom_java_path;
   }
 
-  // Parallel fetch
+  // Critical data first — UI siap secepat mungkin
   await Promise.all([
     fetchAccounts(),
     fetchVersions(),
-    fetchInstances(),
-    fetchJavaInstallations(),
-    fetchPurpurVersions()
+    fetchInstances()
   ]);
+
+  // Slow / external stuff di-defer supaya tidak menahan startup
+  setTimeout(() => {
+    fetchJavaInstallations();
+    fetchPurpurVersions();
+  }, 0);
 
   accountSelect.addEventListener("change", async (e) => {
     if (e.target.value) {
@@ -1049,8 +1082,12 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   deleteAccountBtn.addEventListener("click", async () => {
     if (currentActiveAccount && confirm(`Delete account ${currentActiveAccount.username}?`)) {
-      await invoke("delete_account", { accountId: currentActiveAccount.id });
-      await fetchAccounts();
+      try {
+        await invoke("delete_account", { accountId: currentActiveAccount.id });
+        await fetchAccounts();
+      } catch (err) {
+        alert("Gagal menghapus akun: " + err);
+      }
     }
   });
 
@@ -1059,13 +1096,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   if (manageElybyBtn) {
     manageElybyBtn.addEventListener("click", async () => {
       try {
-        if (window.__TAURI__?.shell) {
-          await window.__TAURI__.shell.open("https://ely.by");
-        } else if (window.__TAURI__?.core) {
-          await window.__TAURI__.core.invoke("plugin:opener|open", { path: "https://ely.by" });
-        } else {
-          window.open("https://ely.by", "_blank");
-        }
+        await window.__TAURI__.core.invoke("open_url", { url: "https://ely.by" });
       } catch (e) {
         console.error("Failed to open Ely.by:", e);
         window.open("https://ely.by", "_blank");
@@ -1141,11 +1172,6 @@ window.addEventListener("DOMContentLoaded", async () => {
     shadersSearchInput.addEventListener("keydown", (e) => {
       if (e.key === "Enter") searchModrinthShaders(shadersSearchInput.value);
     });
-
-    // Initial fetch for shaders
-    setTimeout(() => {
-      searchModrinthShaders("");
-    }, 1000);
   }
 
   // CREATE INSTANCE LOGIC
@@ -1308,10 +1334,10 @@ window.addEventListener("DOMContentLoaded", async () => {
           isServerRunning = true;
           startServerBtn.textContent = "◼ STOP SERVER";
           startServerBtn.style.background = "var(--danger)";
-          startServerBtn.style.color = "white";
+          startServerBtn.style.color = "var(--text-inverse)";
           serverStatusBadge.textContent = "ON";
           serverStatusBadge.style.background = "var(--success)";
-          serverStatusBadge.style.color = "white";
+          serverStatusBadge.style.color = "var(--text-inverse)";
         } catch (e) {
           alert("Failed to start server:\n" + e);
           startServerBtn.textContent = "▶ START SERVER";
@@ -1577,16 +1603,16 @@ window.addEventListener("DOMContentLoaded", async () => {
             <div style="display: flex; gap: 12px; align-items: start; margin-bottom: 12px;">
               <img src="${hit.icon_url || 'https://mc-heads.net/avatar/Steve/64'}" width="48" height="48" style="border-radius: 8px;" />
               <div>
-                <h4 style="margin-bottom: 4px; font-size: 15px;">${hit.title}</h4>
-                <p style="font-size: 11px; color: var(--accent); margin-bottom: 4px;">by ${hit.author}</p>
-                <p style="font-size: 12px;">${hit.description.substring(0, 50)}...</p>
-              </div>
-            </div>
-            <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted); margin-bottom: 12px; font-weight: 600;">
-              <span style="background: #eef2ff; color: var(--accent); padding: 2px 6px; border-radius: 4px;">🎯 Server Plugin</span>
-              <span>📥 ${downloads}</span>
-            </div>
-            <button class="btn ${isInstalled ? '' : 'btn-primary'} plugin-install-btn" style="width: 100%; ${isInstalled ? 'background: var(--success); color: white; border: none;' : ''}" ${isInstalled ? 'disabled' : ''}>${isInstalled ? '✓ Terpasang' : 'Install'}</button>
+            <h4 style="margin-bottom: 4px; font-size: 15px;">${hit.title}</h4>
+            <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 4px;">by ${hit.author}</p>
+            <p style="font-size: 12px;">${truncate(hit.description, 50)}</p>
+          </div>
+        </div>
+        <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted); margin-bottom: 12px; font-weight: 600;">
+          <span class="tag" style="background: var(--pastel-blue); color: var(--pastel-blue-text); margin-bottom: 0;">🎯 Server Plugin</span>
+          <span>📥 ${downloads}</span>
+        </div>
+        <button class="btn ${isInstalled ? '' : 'btn-primary'} plugin-install-btn" style="width: 100%; ${isInstalled ? 'background: var(--success); color: var(--color-ink);' : ''}" ${isInstalled ? 'disabled' : ''}>${isInstalled ? '✓ Terpasang' : 'Install'}</button>
           `;
 
           let btn = card.querySelector(".plugin-install-btn");
@@ -1607,7 +1633,7 @@ window.addEventListener("DOMContentLoaded", async () => {
                   btn.textContent = "✓ Terpasang";
                   btn.style.background = "var(--success)";
                   btn.className = "btn"; // remove btn-primary
-                  btn.style.color = "white";
+                  btn.style.color = "var(--text-inverse)";
                   btn.style.border = "none";
                 } else {
                   btn.textContent = "Error";
@@ -1780,9 +1806,6 @@ window.addEventListener("DOMContentLoaded", async () => {
       globalSettings = await invoke("get_settings");
 
       document.querySelector("#settings-theme").value = globalSettings.theme || "light";
-      if (document.querySelector("#settings-elyby")) {
-        document.querySelector("#settings-elyby").checked = globalSettings.use_elyby !== false; // Default true if null
-      }
       document.querySelector("#settings-ram-max").value = globalSettings.ram_max || 4096;
       document.querySelector("#settings-res-width").value = globalSettings.res_width || 854;
       document.querySelector("#settings-res-height").value = globalSettings.res_height || 480;
@@ -1813,12 +1836,8 @@ window.addEventListener("DOMContentLoaded", async () => {
       let latestSettings = await invoke("get_settings");
 
       latestSettings.theme = document.querySelector("#settings-theme").value;
-      if (document.querySelector("#settings-elyby")) {
-        latestSettings.use_elyby = document.querySelector("#settings-elyby").checked;
-      }
-
       let ramValue = parseInt(document.querySelector("#settings-ram-max").value) || 4096;
-      latestSettings.ram_min = ramValue;
+      latestSettings.ram_min = ramValue / 4;
       latestSettings.ram_max = ramValue;
       latestSettings.res_width = parseInt(document.querySelector("#settings-res-width").value) || 854;
       latestSettings.res_height = parseInt(document.querySelector("#settings-res-height").value) || 480;
@@ -1962,7 +1981,7 @@ window.addEventListener("DOMContentLoaded", async () => {
 
         let delBtn = document.createElement("button");
         delBtn.className = "btn";
-        delBtn.style.cssText = "background: #ffebee; color: var(--danger); border: none; padding: 4px 8px; font-size: 11px;";
+        delBtn.style.cssText = "background: var(--danger); color: var(--color-ink); padding: 4px 8px; font-size: 11px;";
         delBtn.innerHTML = "🗑️";
         delBtn.title = "Hapus Screenshot";
 
@@ -2040,7 +2059,7 @@ window.addEventListener("DOMContentLoaded", async () => {
         document.getElementById("update-current-version").textContent = currentVersion;
         document.getElementById("update-new-version").textContent = latestVersion;
 
-        let bodyHtml = (data.body || "Tidak ada changelog yang disediakan.").replace(/\r\n/g, "<br>").replace(/\n/g, "<br>");
+        let bodyHtml = escapeHtml(data.body || "Tidak ada changelog yang disediakan.").replace(/\r\n/g, "<br>").replace(/\n/g, "<br>");
         document.getElementById("update-changelog").innerHTML = bodyHtml;
 
         document.getElementById("update-notification").style.display = "block";
@@ -2060,4 +2079,17 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   // Call it a few seconds after startup
   setTimeout(checkForUpdates, 3000);
+  } catch (e) {
+    console.error("[ND Launcher] Startup failed:", e);
+    const body = document.body;
+    if (body) {
+      body.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100vh;background:#1a1a2e;color:#eee;font-family:sans-serif;padding:20px;">
+        <div style="text-align:center;">
+          <h2 style="color:#f87171;margin-bottom:12px;">⚠️ Launcher Gagal Dimulai</h2>
+          <p style="color:#aaa;font-size:14px;">Cek console untuk detail error.</p>
+          <p style="color:#666;font-size:12px;margin-top:8px;">${String(e)}</p>
+        </div>
+      </div>`;
+    }
+  }
 });

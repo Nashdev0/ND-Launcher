@@ -74,7 +74,18 @@ pub async fn get_installed_java() -> Result<Vec<JavaInstallation>, String> {
                     }
 
                     if java_bin.exists() {
-                        check_and_add_java(java_bin, &mut installations).await;
+                        // Fast path: infer major version from the folder name (no process spawn).
+                        // Only spawn `java -version` when we cannot guess from the path.
+                        if let Some(major) = infer_major_from_path(&java_bin) {
+                            let path_str = java_bin.to_string_lossy().to_string();
+                            installations.push(JavaInstallation {
+                                path: path_str,
+                                version: format!("{}", major),
+                                major_version: major,
+                            });
+                        } else {
+                            check_and_add_java(java_bin, &mut installations).await;
+                        }
                     }
                 }
             }
@@ -83,6 +94,44 @@ pub async fn get_installed_java() -> Result<Vec<JavaInstallation>, String> {
 
     installations.dedup_by(|a, b| a.path == b.path);
     Ok(installations)
+}
+
+/// Guess the Java major version from the install folder name without spawning a process.
+/// Handles names like `jdk-17.0.2`, `jdk-21`, `temurin-25.0.1+8`, `jre1.8.0_381`, `jdk-8u401`.
+fn infer_major_from_path(java_bin: &std::path::Path) -> Option<u32> {
+    // java_bin = .../<install-dir>/bin/java(.exe)
+    let dir = java_bin.parent()?.parent()?;
+    let name = dir.file_name()?.to_string_lossy().to_lowercase();
+
+    // Find the first run of digits that is a plausible version start.
+    let bytes = name.as_bytes();
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i].is_ascii_digit() {
+            let start = i;
+            // Collect the whole dotted token, e.g. "1.8.0" or "17.0.2" or "8".
+            while i < bytes.len() && (bytes[i].is_ascii_digit() || bytes[i] == b'.') {
+                i += 1;
+            }
+            let token = name[start..i].trim_end_matches('.');
+            let mut parts = token.split('.');
+            let first = parts.next()?;
+            let n = first.parse::<u32>().ok()?;
+            if n == 1 {
+                // Legacy style: 1.8 → 8
+                if let Some(m) = parts.next().and_then(|s| s.parse::<u32>().ok()) {
+                    if m >= 6 {
+                        return Some(m);
+                    }
+                }
+            } else if (6..=30).contains(&n) {
+                return Some(n);
+            }
+            break;
+        }
+        i += 1;
+    }
+    None
 }
 
 async fn check_and_add_java(path: PathBuf, list: &mut Vec<JavaInstallation>) {

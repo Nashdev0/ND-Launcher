@@ -344,7 +344,7 @@ pub async fn launch_game(app: AppHandle, username: String, uuid_str: String, ver
                     
                     let dl_client_clone = dl_client.clone();
                     handles_libs.push(tokio::spawn(async move {
-                        let _permit = sem.acquire().await.unwrap();
+                        let _permit = match sem.acquire().await { Ok(p) => p, Err(_) => return };
                         let _ = download_file(&dl_client_clone, &artifact.url, &lib_path).await;
                         let c = comp.fetch_add(1, std::sync::atomic::Ordering::Relaxed) + 1;
                         if c % 10 == 0 || c == total_libs {
@@ -399,7 +399,7 @@ pub async fn launch_game(app: AppHandle, username: String, uuid_str: String, ver
         let dl_client_clone = dl_client.clone();
         
         handles.push(tokio::spawn(async move {
-            let _permit = sem.acquire().await.unwrap();
+            let _permit = match sem.acquire().await { Ok(p) => p, Err(_) => return };
             let _ = download_file(&dl_client_clone, &url, &dest).await;
             let c = comp.fetch_add(1, std::sync::atomic::Ordering::Relaxed) + 1;
             if c % 50 == 0 || c == total_assets {
@@ -620,8 +620,8 @@ pub async fn launch_game(app: AppHandle, username: String, uuid_str: String, ver
 
     let child_id = child.id().unwrap_or(0);
 
-    let stdout = child.stdout.take().unwrap();
-    let stderr = child.stderr.take().unwrap();
+    let stdout = child.stdout.take().ok_or("Failed to capture stdout")?;
+    let stderr = child.stderr.take().ok_or("Failed to capture stderr")?;
     let app_out = app.clone();
     let app_err = app.clone();
     let app_exit = app.clone();

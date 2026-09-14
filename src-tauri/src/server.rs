@@ -13,6 +13,11 @@ impl Default for ServerState {
     }
 }
 
+/// Lock a mutex, recovering from poisoning instead of panicking.
+fn lock_recover<T>(m: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
+    m.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
+}
+
 fn get_server_dir(version: &str) -> std::path::PathBuf {
     let default_dir = crate::settings::get_base_dir().join("game_data").join("server").join(version);
     let settings_path = crate::settings::get_base_dir().join("game_data").join("launcher_settings.json");
@@ -21,7 +26,8 @@ fn get_server_dir(version: &str) -> std::path::PathBuf {
         if let Ok(settings) = serde_json::from_str::<crate::settings::LauncherSettings>(&contents) {
             if let Some(custom) = settings.custom_server_dir {
                 if !custom.trim().is_empty() {
-                    return std::path::PathBuf::from(custom).join("server").join(version);
+                    // custom_server_dir is the server root (analogous to game_data/server)
+                    return std::path::PathBuf::from(custom).join(version);
                 }
             }
         }
@@ -43,7 +49,7 @@ pub async fn start_server(
 
     // Check if already running
     {
-        let mut child_opt = state.0.lock().unwrap();
+        let mut child_opt = lock_recover(&state.0);
         if let Some(child) = child_opt.as_mut() {
             if let Ok(None) = child.try_wait() {
                 return Err("Server is already running!".to_string());
@@ -114,8 +120,8 @@ pub async fn start_server(
         .spawn()
         .map_err(|e| format!("Failed to start java process: {}", e))?;
 
-    let stdout = child.stdout.take().expect("Failed to grab stdout");
-    let stderr = child.stderr.take().expect("Failed to grab stderr");
+    let stdout = child.stdout.take().ok_or("Failed to grab stdout")?;
+    let stderr = child.stderr.take().ok_or("Failed to grab stderr")?;
     
     let app_clone1 = app.clone();
     std::thread::spawn(move || {
@@ -184,7 +190,7 @@ pub async fn start_server(
         }
     });
 
-    let mut state_lock = state.0.lock().unwrap();
+    let mut state_lock = lock_recover(&state.0);
     *state_lock = Some(child);
 
     Ok(())
@@ -192,7 +198,7 @@ pub async fn start_server(
 
 #[tauri::command]
 pub fn stop_server(state: State<'_, ServerState>) -> Result<(), String> {
-    let mut child_opt = state.0.lock().unwrap();
+    let mut child_opt = lock_recover(&state.0);
     
     if let Some(mut child) = child_opt.take() {
         // Try to gracefully stop via stdin if possible
@@ -212,7 +218,7 @@ pub fn stop_server(state: State<'_, ServerState>) -> Result<(), String> {
 
 #[tauri::command]
 pub fn send_console_command(command: String, state: State<'_, ServerState>) -> Result<(), String> {
-    let mut child_opt = state.0.lock().unwrap();
+    let mut child_opt = lock_recover(&state.0);
     if let Some(child) = child_opt.as_mut() {
         if let Some(stdin) = child.stdin.as_mut() {
             let cmd = format!("{}\n", command);
@@ -236,7 +242,7 @@ impl Default for TunnelState {
 pub async fn start_tunnel(port: u16, state: State<'_, TunnelState>) -> Result<String, String> {
     // Check if already running
     {
-        let mut child_opt = state.0.lock().unwrap();
+        let mut child_opt = lock_recover(&state.0);
         if let Some(child) = child_opt.as_mut() {
             if let Ok(None) = child.try_wait() {
                 // If running, we could return the existing one, but for simplicity let's kill and restart
@@ -262,11 +268,11 @@ pub async fn start_tunnel(port: u16, state: State<'_, TunnelState>) -> Result<St
         .spawn()
         .map_err(|e| format!("Failed to start ssh process: {}", e))?;
 
-    let stdout = child.stdout.take().expect("Failed to grab stdout");
+    let stdout = child.stdout.take().ok_or("Failed to grab stdout")?;
     let mut reader = BufReader::new(stdout);
     
     // We also need to read stderr because ssh sometimes prints banners to stderr
-    let stderr = child.stderr.take().expect("Failed to grab stderr");
+    let stderr = child.stderr.take().ok_or("Failed to grab stderr")?;
     
     // Let's spawn a thread to read stdout and stderr and find the URL. 
     // Wait, let's just do it sequentially with a timeout or read one by one.
@@ -305,7 +311,7 @@ pub async fn start_tunnel(port: u16, state: State<'_, TunnelState>) -> Result<St
         }
     });
 
-    let mut state_lock = state.0.lock().unwrap();
+    let mut state_lock = lock_recover(&state.0);
     *state_lock = Some(child);
 
     // Wait up to 10 seconds for the URL
@@ -317,7 +323,7 @@ pub async fn start_tunnel(port: u16, state: State<'_, TunnelState>) -> Result<St
 
 #[tauri::command]
 pub fn stop_tunnel(state: State<'_, TunnelState>) -> Result<(), String> {
-    let mut child_opt = state.0.lock().unwrap();
+    let mut child_opt = lock_recover(&state.0);
     if let Some(mut child) = child_opt.take() {
         let _ = child.kill();
         let _ = child.wait();

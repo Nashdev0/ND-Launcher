@@ -51,8 +51,6 @@
             Aktif</label>
           <select class="input-box" id="account-select" style="width: 100%; margin-bottom: 8px;"></select>
           <div style="display: flex; gap: 8px; margin-bottom: 8px;">
-            <button class="btn btn-outline" id="btn-change-skin" style="flex: 1; font-size: 13px;">👕 Ganti
-              Skin</button>
             <button class="btn btn-outline" id="delete-account-btn"
               style="flex: 1; font-size: 13px; border-color: #ff5252; color: #ff5252;">Hapus Akun</button>
           </div>
@@ -94,66 +92,73 @@
       <!-- NEWS VIEW -->
       <div id="view-news">
         <div class="banner panel">
-          <h2 id="news-banner-title">ND LAUNCHER DEMO v0.0.5</h2>
+          <h2 id="news-banner-title">ND LAUNCHER DEMO v0.0.6</h2>
           <p id="news-banner-desc">Hanya orang tertentu yang bisa akses demo version.</p>
           <button class="btn btn-primary" id="news-banner-btn">Mainkan Sekarang</button>
         </div>
 
         <h3 style="font-weight: 600; font-size: 16px; margin-top: 24px; margin-bottom: 16px;">TERBARU & CHANGELOG:</h3>
         <div class="grid-2">
-          <div class="news-card panel" style="border: 1px solid #f87171;">
-            <span class="tag" style="background: #ef4444; color: white;">⚠️ PERINGATAN PENTING</span>
-            <h4 id="news-warning-title">Wajib Pakai Java 21+ / 25</h4>
-            <p id="news-warning-desc">Jika Anda bermain versi 1.20.5 - 1.21.1, Anda
-              <strong>WAJIB</strong> memakai Java 21. Untuk 1.21.2 ke atas (seperti 26.2), wajib
-              memakai Java 25. (Auto-installer Java 25 sudah ditambahkan pada v0.0.3!)
-            </p>
+          <div class="news-card panel" style="border: 1px solid var(--accent);">
+            <span class="tag" style="background: var(--accent); color: var(--color-ink);">UPDATE v0.0.6</span>
+            <h4>🧹 Bug Hunt Menyeluruh</h4>
+            <p>Audit total seluruh kode: crash Modrinth saat deskripsi kosong, kebocoran profil Ely.by antar akun, alokasi RAM yang tertimpa, dan puluhan potensi panic di backend sudah dibereskan.</p>
+          </div>
+          <div class="news-card panel" style="border: 1px solid var(--success);">
+            <span class="tag" style="background: var(--success); color: var(--color-ink);">STABILITAS v0.0.6</span>
+            <h4>🛡️ Anti-Crash & Aman</h4>
+            <p>Lock backend tidak lagi bisa nge-crash aplikasi, error ditangani dengan rapi, dan CHANGELOG dari GitHub dibersihkan agar tidak bisa menyisipkan kode berbahaya.</p>
+          </div>
+          <div class="news-card panel" style="border: 1px solid var(--success);">
+            <span class="tag" style="background: var(--success); color: var(--color-ink);">BUG FIX v0.0.6</span>
+            <h4>📁 Custom Server Dir</h4>
+            <p>Folder server kustom sekarang konsisten - tidak lagi membuat sub-folder <code>server</code> ganda. Data runtime juga tidak lagi ikut ter-commit ke repo.</p>
           </div>
           <div class="news-card panel" style="border: 1px solid var(--accent);">
-            <span class="tag" style="background: var(--accent); color: white;">UPDATE v0.0.5</span>
+            <span class="tag" style="background: var(--accent); color: var(--color-ink);">UPDATE v0.0.5</span>
             <h4>🧑💻 Ely.by Integration</h4>
             <p>Panel profil Ely.by otomatis muncul di Settings! Login dengan username Ely.by → lihat avatar, UUID, dan status skin secara langsung tanpa buka browser.</p>
           </div>
           <div class="news-card panel" style="border: 1px solid var(--success);">
-            <span class="tag" style="background: var(--success); color: white;">OPTIMASI v0.0.5</span>
+            <span class="tag" style="background: var(--success); color: var(--color-ink);">OPTIMASI v0.0.5</span>
             <h4>🎨 Avatar Skin Otomatis</h4>
             <p>Avatar di launcher sekarang menampilkan skin dari Ely.by secara otomatis. Cache & deduplication prevents API spam - hanya fetch sekali per akun!</p>
           </div>
           <div class="news-card panel" style="border: 1px solid var(--success);">
-            <span class="tag" style="background: var(--success); color: white;">BUG FIX v0.0.5</span>
+            <span class="tag" style="background: var(--success); color: var(--color-ink);">BUG FIX v0.0.5</span>
             <h4>🔧 Perbaikan Bug & Optimasi</h4>
             <p>Memperbaiki beberapa bug penting dan mengoptimalkan performa launcher secara keseluruhan.</p>
           </div>
           <div class="news-card panel" style="border: 1px solid var(--accent);">
-            <span class="tag" style="background: var(--accent); color: white;">UPDATE v0.0.4</span>
+            <span class="tag" style="background: var(--accent); color: var(--color-ink);">UPDATE v0.0.4</span>
             <h4>🧑‍🚀 Ely.by Skin System</h4>
             <p>Sekarang pengguna offline bisa tampil gaya! Gunakan akun Ely.by untuk menampilkan skin dan cape kustom Anda secara langsung di dalam game maupun multiplayer.</p>
           </div>
           <div class="news-card panel" style="border: 1px solid var(--success);">
-            <span class="tag" style="background: var(--success); color: white;">OPTIMASI v0.0.4</span>
+            <span class="tag" style="background: var(--success); color: var(--color-ink);">OPTIMASI v0.0.4</span>
             <h4>⚡ Super Fast Startup</h4>
             <p>Waktu *loading* aplikasi saat baru dibuka telah dipangkas drastis (diskon hingga 80%) berkat *lazy loading*, asinkronisasi font, serta caching Mojang dan Java!</p>
           </div>
           <div class="news-card panel" style="border: 1px solid var(--accent);">
-            <span class="tag" style="background: var(--accent); color: white;">UPDATE v0.0.3</span>
+            <span class="tag" style="background: var(--accent); color: var(--color-ink);">UPDATE v0.0.3</span>
             <h4 id="news-v3-1-title">Modrinth Downloader Pro</h4>
             <p id="news-v3-1-desc">Sekarang Anda bisa memilih <strong>versi spesifik</strong> dari sebuah mod (Dropdown
               Versi). Selain itu, Anda bebas mengganti versi (Re-install) tanpa takut mod bertumpuk, karena mod lama
               akan otomatis terhapus!</p>
           </div>
           <div class="news-card panel">
-            <span class="tag" style="background: var(--success); color: white;">BUG FIX v0.0.3</span>
+            <span class="tag" style="background: var(--success); color: var(--color-ink);">BUG FIX v0.0.3</span>
             <h4 id="news-v3-2-title">Fix Java Version</h4>
             <p id="news-v3-2-desc">Memperbaiki bug konfigurasi versi Java yang ter-reset saat menyimpan pengaturan.</p>
           </div>
           <div class="news-card panel">
-            <span class="tag" style="background: #94a3b8; color: white;">UPDATE v0.0.2</span>
+            <span class="tag" style="background: #94a3b8; color: #1e1a2e;">UPDATE v0.0.2</span>
             <h4 id="news-release-title">Update Checker & Galeri</h4>
             <p id="news-release-desc">Kini launcher dilengkapi dengan sistem pendeteksi update otomatis dan Screenshot
               Manager terintegrasi!</p>
           </div>
           <div class="news-card panel">
-            <span class="tag" style="background: #94a3b8; color: white;">BUG FIX v0.0.2</span>
+            <span class="tag" style="background: #94a3b8; color: #1e1a2e;">BUG FIX v0.0.2</span>
             <h4 id="news-snapshot-title">Perbaikan Jendela CMD Java</h4>
             <p id="news-snapshot-desc">Jendela hitam CMD Java tidak akan lagi muncul dan mengganggu saat Anda bermain di
               sistem Windows.</p>
@@ -624,7 +629,7 @@
       <div
         style="padding: 16px; border-top: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: flex-end; gap: 8px;">
         <button class="btn" id="save-props-btn"
-          style="background: var(--accent); color: white; border: none; padding: 10px 16px; font-weight: 600;">Simpan
+          style="background: var(--accent); color: var(--color-ink); border: none; padding: 10px 16px; font-weight: 600;">Simpan
           Perubahan</button>
       </div>
     </div>
@@ -671,7 +676,7 @@
       <div
         style="padding: 16px; border-top: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: flex-end; gap: 8px;">
         <button class="btn" id="crash-understood-btn"
-          style="background: var(--accent); color: white; border: none; padding: 10px 24px; font-weight: 600;">Mengerti</button>
+          style="background: var(--accent); color: var(--color-ink); border: none; padding: 10px 24px; font-weight: 600;">Mengerti</button>
       </div>
     </div>
   </div>

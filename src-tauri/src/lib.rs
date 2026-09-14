@@ -45,6 +45,7 @@ pub fn run() {
             settings::get_elyby_face_url,
             settings::get_elyby_head_data_url,
             settings::get_elyby_profile,
+            settings::open_url,
             settings::get_instance_mods,
             settings::get_latest_crash_log,
             settings::toggle_mod,

@@ -96,6 +96,15 @@ C:\ND Launcher\                Windows
 
 ## 🔄 Changelog
 
+### v0.0.6 — Bug Hunt Menyeluruh
+- Fix crash Modrinth saat deskripsi mod kosong
+- Fix kebocoran profil Ely.by antar akun
+- Fix alokasi RAM yang tertimpa saat launch
+- Backend anti-panic (mutex recovery, error handling)
+- Folder server kustom jadi konsisten
+- Changelog GitHub disanitasi (anti-injeksi)
+- Runtime data tidak lagi ikut ter-commit
+
 ### v0.0.5 — Ely.by Integration
 - Panel profil Ely.by otomatis (avatar, UUID, status skin)
 - Avatar skin tampil langsung di launcher

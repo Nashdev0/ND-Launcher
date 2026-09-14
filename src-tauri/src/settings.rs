@@ -85,7 +85,9 @@ pub fn get_base_dir() -> PathBuf {
         if let Some(home) = std::env::var_os("HOME") {
             PathBuf::from(home).join("ND Launcher")
         } else {
-            std::env::current_dir().unwrap().join("ND Launcher")
+            std::env::current_dir()
+                .unwrap_or_else(|_| PathBuf::from("."))
+                .join("ND Launcher")
         }
     }
 }
@@ -721,4 +723,9 @@ pub async fn get_elyby_skin_bytes(username: &str) -> Result<Option<Vec<u8>>, Str
     let bytes = skin_res.bytes().await.map_err(|e| e.to_string())?.to_vec();
     
     Ok(Some(bytes))
+}
+
+#[tauri::command]
+pub async fn open_url(url: String) -> Result<(), String> {
+    tauri_plugin_opener::open_url(&url, None::<&str>).map_err(|e| e.to_string())
 }

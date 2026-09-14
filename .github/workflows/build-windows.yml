@@ -39,7 +39,7 @@ jobs:
       id: get_version
       run: |
         if [[ "${{ github.ref }}" == refs/tags/* ]]; then
-          echo "ver=${{ github.ref_name }}" | sed 's/^v//' >> $GITHUB_OUTPUT
+          echo "ver=${{ github.ref_name }}" | sed 's/^ver=v/ver=/' >> $GITHUB_OUTPUT
         else
           echo "ver=$(grep '^version' src-tauri/Cargo.toml | head -1 | cut -d'"' -f2)" >> $GITHUB_OUTPUT
         fi
